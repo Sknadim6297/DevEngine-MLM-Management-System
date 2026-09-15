@@ -1,0 +1,730 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Admin Dashboard</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js -->
+    <!--  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>-->
+
+
+</head>
+
+
+<body>
+
+
+  
+    <!-- =========================================================
+     DESKTOP SIDEBAR
+========================================================= -->
+
+    <aside id="desktopSidebar" class="sidebar desktop-sidebar">
+
+        <div class="sidebar-logo">
+            <span class="logo-text">DevEngine</span>
+        </div>
+
+        <div class="sidebar-menu">
+
+            <a href="dashboard.html" class="active">
+                <i class="bi bi-house-door-fill"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <!-- MEMBER -->
+            <a href="#memberMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="memberMenu">
+
+                <i class="bi bi-grid"></i>
+                <span>Member</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- MEMBER SUB MENU -->
+            <div class="collapse submenu" id="memberMenu">
+
+                <a href="NewAssociate.html">
+                    <i class="bi bi-person"></i>
+                    <span>Member Registration</span>
+                </a>
+
+                <a href="AssociateUpdate.html">
+                    <i class="bi bi-person-plus"></i>
+                    <span>View/Update Member Profile</span>
+                </a>
+
+                <a href="ListOfIDandPass.html">
+                    <i class="bi bi-card-list"></i>
+                    <span>Inactive Member List</span>
+                </a>
+
+                <a href="ListOfIDandPass2.html">
+                    <i class="bi bi-person-check"></i>
+                    <span>Active Member List</span>
+                </a>
+
+            </div>
+
+            <a href="#genealogyMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="genealogyMenu">
+
+                <i class="bi bi-layers"></i>
+                <span>Genealogy</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- GENEALOGY SUB MENU -->
+            <div class="collapse submenu" id="genealogyMenu">
+
+                <a href="TreeView.html">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Tree View</span>
+                </a>
+
+                <a href="LevelView.html">
+                    <i class="bi bi-people"></i>
+                    <span>Level View</span>
+                </a>
+
+            </div>
+
+            <a href="#activationWalletMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="activationWalletMenu">
+
+                <i class="bi bi-bar-chart"></i>
+                <span>Activation Wallet</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- ACTIVATION WALLET SUB MENU -->
+            <div class="collapse submenu" id="activationWalletMenu">
+
+                <a href="AmountEntry.html">
+                    <i class="bi bi-wallet2"></i>
+                    <span>Transfer to Activation Wallet Entry</span>
+                </a>
+
+                <a href="AmountList.html">
+                    <i class="bi bi-arrow-right-circle"></i>
+                    <span>Transfer to Activation Wallet from admin list</span>
+                </a>
+
+                <a href="Debit5.html">
+                    <i class="bi bi-person-lines-fill"></i>
+                    <span>Force Debit from activation wallet entry</span>
+                </a>
+
+                <a href="DebitList5.html">
+                    <i class="bi bi-list-ul"></i>
+                    <span>Force Debit from activation wallet entry</span>
+                </a>
+
+                <a href="ActSummary.html">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Activation Wallet Summary</span>
+                </a>
+
+            </div>
+            <a href="#investmentMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="investmentMenu">
+
+                <i class="bi bi-pencil-square"></i>
+                <span>Investment</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- INVESTMENT SUB MENU -->
+            <div class="collapse submenu" id="investmentMenu">
+
+                <a href="Investment2.html">
+                    <i class="bi bi-plus-circle"></i>
+                    <span>Investment Entry</span>
+                </a>
+
+                <a href="InvestmentReport2.html">
+                    <i class="bi bi-list-ul"></i>
+                    <span>Active Investment List</span>
+                </a>
+
+                <a href="ExpList.html">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Closed Investment List</span>
+                </a>
+
+                <a href="WithdrawEntry.html">
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span>Investment Withdrawl Entry</span>
+                </a>
+
+                <a href="WithdrawList.html">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Investment Withdrawl List</span>
+                </a>
+
+
+
+            </div>
+
+            <a href="#roiWalletMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="roiWalletMenu">
+
+                <i class="bi bi-pencil"></i>
+                <span>ROI Wallet</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- ROI WALLET SUB MENU -->
+            <div class="collapse submenu" id="roiWalletMenu">
+
+                <a href="WithdrawRequest.html">
+                    <i class="bi bi-wallet2"></i>
+                    <span>Pending List</span>
+                </a>
+
+                <a href="PaidList.html">
+                    <i class="bi bi-arrow-down-circle"></i>
+                    <span>Paid List</span>
+                </a>
+
+                <a href="RejList.html">
+                    <i class="bi bi-arrow-up-circle"></i>
+                    <span>Rrejected List</span>
+                </a>
+
+                <a href="Credit.html">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>Force Credit to ROI Wallet Entry</span>
+                </a>
+
+                <a href="CreditList.html">
+                    <i class="bi bi-list-ul"></i>
+                    <span>Force Credit to ROI Wallet List</span>
+                </a>
+
+                <a href="Debit.html">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Force Debit from ROI Wallet Entry</span>
+                </a>
+
+                <a href="DebitList.html">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <span>Force Debit from ROI Wallet List</span>
+                </a>
+
+                <a href="TrList.html">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Member ROI Wallet to ROI Wallet Transfer List</span>
+                </a>
+
+                <a href="LeaderList.html">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leaderwise ROI Wallet List</span>
+                </a>
+
+            </div>
+
+            <a href="#workingWalletMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="workingWalletMenu">
+
+                <i class="bi bi-pie-chart"></i>
+                <span>Working Wallet</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- WORKING WALLET SUB MENU -->
+            <div class="collapse submenu" id="workingWalletMenu">
+
+                <a href="WithdrawRequest2.html">
+                    <i class="bi bi-wallet2"></i>
+                    <span>Pending List</span>
+                </a>
+
+                <a href="PaidList2.html">
+                    <i class="bi bi-arrow-down-circle"></i>
+                    <span>Paid List</span>
+                </a>
+
+                <a href="RejList2.html">
+                    <i class="bi bi-arrow-up-circle"></i>
+                    <span>Rejected List</span>
+                </a>
+
+                <a href="Credit2.html">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>Force Credit to working wallet Entry</span>
+                </a>
+
+                <a href="CreditList2.html">
+                    <i class="bi bi-person-lines-fill"></i>
+                    <span>Force Credit to working wallet Entry</span>
+                </a>
+
+                <a href="Debit2.html">
+                    <i class="bi bi-list-ul"></i>
+                    <span>Force debit from working wallet Entry</span>
+                </a>
+
+                <a href="DebitList2.html">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <span>Force debit from working wallet List</span>
+                </a>
+
+                <a href="TrList2.html">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Member working wallet to working wallet Transfer List</span>
+                </a>
+
+                <a href="LeaderList2.html">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leaderwise working wallet list</span>
+                </a>
+
+            </div>
+
+            <a href="#salaryWalletMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="salaryWalletMenu">
+
+                <i class="bi bi-table"></i>
+                <span>Salary Wallet</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- SALARY WALLET SUB MENU -->
+            <div class="collapse submenu" id="salaryWalletMenu">
+
+                <a href="WithdrawRequest3.html">
+                    <i class="bi bi-wallet2"></i>
+                    <span>Pending List</span>
+                </a>
+
+                <a href="PaidList3.html">
+                    <i class="bi bi-arrow-down-circle"></i>
+                    <span>Paid List</span>
+                </a>
+
+                <a href="RejList3.html">
+                    <i class="bi bi-arrow-up-circle"></i>
+                    <span>Rejected List</span>
+                </a>
+
+                <a href="Credit4.html">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>Force credit to salary wallet entry</span>
+                </a>
+
+                <a href="CreditList4.html">
+                    <i class="bi bi-person-lines-fill"></i>
+                    <span>Force credit to salary wallet List</span>
+                </a>
+
+                <a href="Debit4.html">
+                    <i class="bi bi-list-ul"></i>
+                    <span>Force debit from salary wallet entry</span>
+                </a>
+
+                <a href="DebitList4.html">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <span>Force debit from salary wallet list</span>
+                </a>
+
+                <a href="TrList4.html">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Member salary wallet to salary  wallet transfer list</span>
+                </a>
+
+                <a href="LeaderList3.html">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Leaderwise salary wallet list</span>
+                </a>
+
+            </div>
+
+            <a href="#reportsMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="reportsMenu">
+
+                <i class="bi bi-search"></i>
+                <span>Reports</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- REPORTS SUB MENU -->
+            <div class="collapse submenu" id="reportsMenu">
+
+                <a href="Income1.html">
+                    <i class="bi bi-person-lines-fill"></i>
+                    <span>ROI</span>
+                </a>
+
+                <a href="Income2.html">
+                    <i class="bi bi-wallet2"></i>
+                    <span>Level Income</span>
+                </a>
+
+                <a href="Income3.html">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Salary</span>
+                </a>
+
+                <a href="RankReport.html">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Rank Achievement Report</span>
+                </a>
+
+
+            </div>
+
+            <a href="#notificationMenu"
+                data-bs-toggle="collapse"
+                role="button"
+                aria-expanded="false"
+                aria-controls="notificationMenu">
+
+                <i class="bi bi-bell"></i>
+                <span>Suport</span>
+
+                <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+            </a>
+
+            <!-- NOTIFICATION SUB MENU -->
+            <div class="collapse submenu" id="notificationMenu">
+
+                <a href="PendTicket.html">
+                    <i class="bi bi-headset"></i>
+                    <span>Pending Ticket List</span>
+                </a>
+
+                <a href="CloseTicket.html">
+                    <i class="bi bi-bell"></i>
+                    <span>Applied Ticket List</span>
+                </a>
+
+            </div>
+
+
+            <a href="ChangePassword.html">
+                <i class="bi bi-exclamation-circle"></i>
+                <span>Change Password</span>
+            </a>
+
+            <a href="#">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+  
+    <!-- =========================================================
+     MAIN WRAPPER
+========================================================= -->
+
+    <div class="main-wrapper">
+
+
+        <!-- TOP NAVBAR -->
+
+        <header class="top-navbar">
+
+            <button class="menu-toggle"
+                type="button"
+                id="sidebarToggle">
+
+                <i class="bi bi-list"></i>
+
+            </button>
+
+
+            <div class="top-actions ms-auto">
+
+                
+
+                <img src="https://i.pravatar.cc/100?img=12"
+                    class="profile-img"
+                    alt="Profile">
+
+            </div>
+
+        </header>
+
+
+        <!-- =====================================================
+         DASHBOARD CONTENT
+    ===================================================== -->
+
+        <main class="dashboard-content">
+
+    
+           
+           
+
+    <div class="form-card">
+
+        <!-- TITLE -->
+        
+
+
+        <!-- SEARCH AREA -->
+        <div class="row align-items-end">
+
+            <!-- MEMBER ID -->
+            <div class="col-md-4 mb-3">
+                <label>Member ID</label>
+
+                <input type="text"
+                     
+                       class="form-control"
+                       placeholder="Enter Member ID">
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label>Team Leader ID</label>
+
+                <input type="text"
+                     
+                       class="form-control"
+                       placeholder="Enter Member ID">
+            </div>
+
+
+            <!-- FROM DATE -->
+            <div class="col-md-3 mb-3">
+                <label>From Date</label>
+
+                <input type="date"
+                      
+                       class="form-control">
+            </div>
+
+
+            <!-- TO DATE -->
+            <div class="col-md-3 mb-3">
+                <label>To Date</label>
+
+                <input type="date"
+                       
+                       class="form-control">
+            </div>
+
+
+            <!-- TOTAL AMOUNT -->
+          
+
+        </div>
+
+
+        <!-- BUTTONS -->
+        <div class="d-flex justify-content-end gap-2 mb-4">
+
+            <button type="button"
+                    class="btn btn-primary"
+                    ">
+
+                <i class="bi bi-file-earmark-excel"></i>
+                Export to Excel
+
+            </button>
+
+
+            <button type="button"
+                    class="btn btn-primary"
+                    onclick="searchInvestment()">
+
+                <i class="bi bi-search"></i>
+                Search
+
+            </button>
+
+
+            <button type="button"
+                    class="btn btn-primary"
+                   ">
+
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Reset
+
+            </button>
+
+        </div>
+
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+
+            <button type="button"
+                    class="btn btn-primary"
+                    ">
+
+                
+              Select All
+            </button>
+
+
+            <button type="button"
+                    class="btn btn-primary"
+                   ">
+
+                
+                Pay to selected
+
+            </button>
+
+
+            
+
+        </div>
+          
+        <!-- TABLE -->
+        <div class="table-responsive">
+
+            <table class="table table-bordered table-hover member-table"
+                   >
+
+                <thead>
+ <tr>
+       <th>Select</th>
+<th>Pay</th>
+<th>Reject Reason</th>
+<th>Reject</th>
+<th>Serial No</th>
+<th>ID</th>
+<th>Name</th>
+<th>Request Date</th>
+<th>Amount want to Withdraw (USDT)</th>
+<th>Admin Charge (USDT)</th>
+<th>Final Amount (USDT)</th>
+<th>BEP20 Wallet Address</th>
+    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                   <tr>
+    <td>
+        <input type="checkbox" class="form-check-input">
+    </td>
+    <td>
+        <select class="form-select form-select-sm">
+            <option>Select</option>
+            <option>Pay</option>
+            <option>Reject</option>
+        </select>
+    </td>
+    <td>1</td>
+    <td>MEM001</td>
+    <td>Rahul Das</td>
+    <td>26-08-2026</td>
+    <td>500.00</td>
+    <td>10.00</td>
+    <td>490.00</td>
+    <td class="text-break">
+        0x1234567890abcdef1234567890abcdef12345678
+    </td>
+</tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- PAGINATION -->
+        <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+            <div class="table-info">
+                Showing 1 to 3 of 3 entries
+            </div>
+
+            <nav>
+
+                <ul class="pagination pagination-sm mb-0">
+
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">Previous</a>
+                    </li>
+
+                    <li class="page-item active">
+                        <a class="page-link" href="#">1</a>
+                    </li>
+
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">Next</a>
+                    </li>
+
+                </ul>
+
+            </nav>
+
+        </div>
+
+    </div>
+
+
+    
+
+    
+
+
+       </main>
+
+    </div>
+
+
+
+
+
+
+
+    <!-- Bootstrap JS -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

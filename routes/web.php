@@ -1,0 +1,69 @@
+<?php
+
+use App\Http\Controllers\MemberController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', function () {
+    if (Auth::check()) {
+        return redirect('/dashboard');
+    }
+
+    return redirect('/admin/login');
+});
+
+Route::get('/admin/login', function () {
+    if (Auth::check()) {
+        return redirect('/dashboard');
+    }
+
+    return view('admin.login.login');
+})->name('login');
+
+Route::post('/admin/login', function (Request $request) {
+    $credentials = $request->validate([
+        'email' => ['required', 'email'],
+        'password' => ['required', 'string'],
+    ]);
+
+    if (Auth::attempt([
+        'email' => $credentials['email'],
+        'password' => $credentials['password'],
+    ], $request->boolean('remember'))) {
+        $request->session()->regenerate();
+
+        return redirect()->intended('/dashboard');
+    }
+
+    return back()->withErrors([
+        'email' => 'Invalid email or password.',
+    ])->onlyInput('email');
+})->name('login.submit');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('admin.dashboard.index');
+    })->name('dashboard');
+
+    Route::post('/admin/logout', function (Request $request) {
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/admin/login');
+    })->name('admin.logout');
+
+    Route::controller(MemberController::class)->prefix('admin/members')->name('admin.members.')->group(function () {
+        Route::get('/active', 'active')->name('active');
+        Route::get('/inactive', 'inactive')->name('inactive');
+        Route::get('/export/{status}', 'export')->name('export');
+        Route::get('/registration', 'registration')->name('registration');
+        Route::get('/update', 'update')->name('update');
+        Route::get('/check-member-id', 'checkMemberIdAvailability')->name('check-member-id');
+        Route::get('/check-sponsor-id', 'checkSponsorIdAvailability')->name('check-sponsor-id');
+        Route::post('/store', 'store')->name('store');
+        Route::post('/update-member', 'updateMember')->name('update-member');
+    });
+});

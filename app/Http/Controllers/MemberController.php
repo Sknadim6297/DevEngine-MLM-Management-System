@@ -1,0 +1,445 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Member;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class MemberController extends Controller
+{
+    protected function formatMembers($members): array
+    {
+        return $members
+            ->map(function (Member $member, $index) {
+                return [
+                    'serial' => $index + 1,
+                    'member_id' => $member->member_id,
+                    'name' => $member->member_name,
+                    'joining_date' => $member->created_at ? $member->created_at->format('d-M-Y') : 'N/A',
+                    'sponsor_id' => $member->sponsor_id,
+                    'sponsor_name' => $member->sponsor_name,
+                    'mobile' => $member->mobile_no,
+                    'pan_card_no' => $member->pan_card_no,
+                    'password' => $member->password ?? '',
+                    'status' => $member->status,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    protected function generateMemberId(): string
+    {
+        for ($counter = 100000; $counter <= 999999; $counter++) {
+            $candidate = 'ST' . $counter;
+
+            if (! Member::where('member_id', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        throw new \RuntimeException('No available Member ID found.');
+    }
+
+    protected function normalizePhone(string $phone): string
+    {
+        return preg_replace('/[^0-9]/', '', $phone) ?? '';
+    }
+
+    protected function normalizeMemberName(string $memberName): string
+    {
+        $normalized = preg_replace('/\s+/', ' ', trim((string) $memberName));
+
+        return $normalized ?? '';
+    }
+
+    protected function resolveSponsorId(): string
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return 'ST666666';
+        }
+
+        if (strtolower($user->email) === 'admin@gmail.com') {
+            return 'ST666666';
+        }
+
+        $member = Member::where('email', $user->email)->first();
+
+        return $member?->member_id ?? 'ST666666';
+    }
+
+    protected function resolveSponsorName(string $sponsorId): string
+    {
+        if ($sponsorId === 'ST666666') {
+            return 'Admin';
+        }
+
+        $member = Member::where('member_id', $sponsorId)->first();
+
+        return $member?->member_name ?? 'Admin';
+    }
+
+    protected function resolveSponsorDetails(Request $request): array
+    {
+        $requestedSponsorId = trim((string) $request->input('sponsor_id', ''));
+
+        if ($requestedSponsorId === 'ST666666') {
+            return [
+                'sponsor_id' => 'ST666666',
+                'sponsor_name' => 'Admin',
+            ];
+        }
+
+        if ($requestedSponsorId !== '') {
+            $member = Member::where('member_id', $requestedSponsorId)->first();
+
+            if ($member) {
+                return [
+                    'sponsor_id' => $member->member_id,
+                    'sponsor_name' => $member->member_name,
+                ];
+            }
+        }
+
+        $sponsorId = $this->resolveSponsorId();
+
+        return [
+            'sponsor_id' => $sponsorId,
+            'sponsor_name' => $this->resolveSponsorName($sponsorId),
+        ];
+    }
+
+    public function active()
+    {
+        return $this->memberList(request(), 'active', 'admin.members.active-member');
+    }
+
+    public function inactive()
+    {
+        return $this->memberList(request(), 'inactive', 'admin.members.inactive');
+    }
+
+    protected function memberList(Request $request, string $status, string $view)
+    {
+        $query = Member::where('status', $status);
+        $memberName = trim((string) $request->query('member_name', ''));
+        $memberId = trim((string) $request->query('member_id', ''));
+
+        if ($memberName !== '') {
+            $query->where(function ($memberQuery) use ($memberName) {
+                $memberQuery->where('member_name', 'like', '%' . $memberName . '%')
+                    ->orWhere('mobile_no', 'like', '%' . $memberName . '%')
+                    ->orWhere('sponsor_id', 'like', '%' . $memberName . '%')
+                    ->orWhere('sponsor_name', 'like', '%' . $memberName . '%');
+            });
+        }
+
+        if ($memberId !== '') {
+            $query->where('member_id', 'like', '%' . $memberId . '%');
+        }
+
+        $members = $query->orderByDesc('created_at')
+            ->paginate(10)
+            ->withQueryString();
+        $members->setCollection(collect($this->formatMembers($members->getCollection())));
+        $members->getCollection()->transform(function (array $member, int $index) use ($members) {
+            $member['serial'] = ($members->currentPage() - 1) * $members->perPage() + $index + 1;
+
+            return $member;
+        });
+
+        return view($view, compact('members', 'memberName', 'memberId'));
+    }
+
+    public function export(Request $request, string $status)
+    {
+        abort_unless(in_array($status, ['active', 'inactive'], true), 404);
+
+        $query = Member::where('status', $status);
+        $memberName = trim((string) $request->query('member_name', ''));
+        $memberId = trim((string) $request->query('member_id', ''));
+
+        if ($memberName !== '') {
+            $query->where(function ($memberQuery) use ($memberName) {
+                $memberQuery->where('member_name', 'like', '%' . $memberName . '%')
+                    ->orWhere('mobile_no', 'like', '%' . $memberName . '%')
+                    ->orWhere('sponsor_id', 'like', '%' . $memberName . '%')
+                    ->orWhere('sponsor_name', 'like', '%' . $memberName . '%');
+            });
+        }
+
+        if ($memberId !== '') {
+            $query->where('member_id', 'like', '%' . $memberId . '%');
+        }
+
+        $members = $query->orderByDesc('created_at')->get();
+
+        return response()->streamDownload(function () use ($members) {
+            $output = fopen('php://output', 'w');
+            fputcsv($output, ['Serial No', 'Member ID', 'Member Name', 'Joining Date', 'Sponsor ID', 'Sponsor Name', 'Mobile No', 'PAN Card Number', 'Password']);
+
+            foreach ($members as $index => $member) {
+                fputcsv($output, [
+                    $index + 1,
+                    $member->member_id,
+                    $member->member_name,
+                    $member->created_at?->format('d-M-Y') ?? 'N/A',
+                    $member->sponsor_id,
+                    $member->sponsor_name,
+                    $member->mobile_no,
+                    $member->pan_card_no,
+                    $member->password,
+                ]);
+            }
+
+            fclose($output);
+        }, $status . '-members-' . now()->format('Y-m-d') . '.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function registration()
+    {
+        $generatedMemberId = session('generated_member_id');
+
+        if (empty($generatedMemberId)) {
+            $generatedMemberId = $this->generateMemberId();
+            session()->put('generated_member_id', $generatedMemberId);
+        }
+
+        $members = Member::select('member_id', 'member_name')
+            ->orderBy('member_id')
+            ->get()
+            ->map(function ($member) {
+                return [
+                    'member_id' => $member->member_id,
+                    'member_name' => $member->member_name,
+                ];
+            })
+            ->all();
+
+        $defaultSponsorId = $this->resolveSponsorId();
+
+        return view('admin.members.member_registration', [
+            'members' => $members,
+            'generated_member_id' => $generatedMemberId,
+            'default_sponsor_id' => $defaultSponsorId,
+            'default_sponsor_name' => $this->resolveSponsorName($defaultSponsorId),
+        ]);
+    }
+
+    public function update()
+    {
+        $member = Member::orderByDesc('id')->first();
+
+        return view('admin.members.member_update', [
+            'member' => $member ? [
+                'member_id' => $member->member_id,
+                'sponsor_id' => $member->sponsor_id,
+                'sponsor_name' => $member->sponsor_name,
+                'name' => $member->member_name,
+                'wallet' => $member->wallet_address,
+                'mobile' => $member->mobile_no,
+                'pan_card_no' => $member->pan_card_no,
+                'email' => $member->email,
+            ] : [],
+        ]);
+    }
+
+    public function checkMemberIdAvailability(Request $request)
+    {
+        $memberId = trim((string) $request->query('member_id', ''));
+        $currentMemberId = trim((string) $request->query('current_member_id', ''));
+
+        if ($memberId === '') {
+            return response()->json([
+                'available' => false,
+                'message' => 'Member ID is required.',
+            ]);
+        }
+
+        if (! preg_match('/^ST\d{6}$/', $memberId)) {
+            return response()->json([
+                'available' => false,
+                'message' => 'Invalid Member ID format.',
+            ]);
+        }
+
+        if ($currentMemberId !== '' && strtoupper($currentMemberId) === strtoupper($memberId)) {
+            return response()->json([
+                'available' => true,
+                'message' => 'Member ID is available.',
+            ]);
+        }
+
+        $exists = Member::where('member_id', $memberId)->exists();
+
+        return response()->json([
+            'available' => ! $exists,
+            'message' => $exists ? 'This Member ID already exists.' : 'Member ID is available.',
+        ]);
+    }
+
+    public function checkSponsorIdAvailability(Request $request)
+    {
+        $sponsorId = trim((string) $request->query('sponsor_id', ''));
+
+        if ($sponsorId === '') {
+            return response()->json([
+                'exists' => false,
+                'message' => 'Sponsor ID is required.',
+            ]);
+        }
+
+        if ($sponsorId === 'ST666666') {
+            return response()->json([
+                'exists' => true,
+                'sponsor_name' => 'Admin',
+                'message' => 'Sponsor ID is valid.',
+            ]);
+        }
+
+        $member = Member::where('member_id', $sponsorId)->first();
+
+        if (! $member) {
+            return response()->json([
+                'exists' => false,
+                'message' => 'Invalid Sponsor ID.',
+            ]);
+        }
+
+        return response()->json([
+            'exists' => true,
+            'sponsor_name' => $member->member_name,
+            'message' => 'Sponsor ID is valid.',
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $generatedMemberId = trim((string) $request->input('generated_member_id', ''));
+
+        if ($generatedMemberId === '') {
+            $generatedMemberId = $this->generateMemberId();
+        }
+
+        $validated = $request->validate([
+            'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
+            'sponsor_id' => ['nullable', 'string'],
+            'wallet_address' => ['nullable', 'string', 'max:255'],
+            'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
+            'pan_card_no' => ['required', 'string', 'max:10'],
+            'email' => ['required', 'email', 'unique:members,email'],
+            'password' => ['nullable', 'string', 'min:6'],
+        ]);
+
+        if (mb_strlen(trim((string) $validated['pan_card_no'])) !== 10) {
+            return back()->withErrors(['pan_card_no' => 'PAN Card Number must be exactly 10 characters.'])->withInput();
+        }
+
+        $validated['pan_card_no'] = strtoupper(trim((string) $validated['pan_card_no']));
+
+        $panCount = Member::whereRaw('UPPER(pan_card_no) = ?', [$validated['pan_card_no']])->count();
+
+        if ($panCount >= 3) {
+            return back()->withErrors(['pan_card_no' => 'This PAN card number has already been used 3 times.'])->withInput();
+        }
+
+        $mobileNoValue = trim((string) $validated['mobile_no']);
+        $mobileCount = Member::where('mobile_no', $mobileNoValue)->count();
+
+        if ($mobileCount >= 3) {
+            return back()->withErrors(['mobile_no' => 'This mobile number has already been used 3 times.'])->withInput();
+        }
+
+        $sponsorDetails = $this->resolveSponsorDetails($request);
+
+        $memberData = [
+            'member_id' => $generatedMemberId,
+            'sponsor_id' => $sponsorDetails['sponsor_id'],
+            'sponsor_name' => $sponsorDetails['sponsor_name'],
+            'member_name' => $validated['member_name'],
+            'wallet_address' => $validated['wallet_address'] ?? null,
+            'mobile_no' => $validated['mobile_no'],
+            'pan_card_no' => $validated['pan_card_no'],
+            'email' => $validated['email'],
+            'status' => 'inactive',
+        ];
+
+        if (! empty($validated['password'])) {
+            $memberData['password'] = bcrypt($validated['password']);
+        }
+
+        $member = Member::create($memberData);
+
+        $request->session()->forget('generated_member_id');
+
+        return redirect()->route('admin.members.registration')
+            ->with('success', 'Member registration submitted successfully. Member ID: ' . $member->member_id);
+    }
+
+    public function updateMember(Request $request)
+    {
+        $request->validate([
+            'member_id' => ['required', 'string', 'min:6', 'exists:members,member_id'],
+        ]);
+
+        $member = Member::where('member_id', $request->member_id)->first();
+
+        if (! $member) {
+            return back()->withErrors(['member_id' => 'Member not found.'])->withInput();
+        }
+
+        $validated = $request->validate([
+            'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
+            'sponsor_id' => ['nullable', 'string'],
+            'wallet_address' => ['nullable', 'string', 'max:255'],
+            'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
+            'pan_card_no' => ['required', 'string', 'max:10'],
+            'email' => ['required', 'email', Rule::unique('members', 'email')->ignore($member->id)],
+            'password' => ['nullable', 'string', 'min:6'],
+        ]);
+
+        if (mb_strlen(trim((string) $validated['pan_card_no'])) !== 10) {
+            return back()->withErrors(['pan_card_no' => 'PAN Card Number must be exactly 10 characters.'])->withInput();
+        }
+
+        $validated['pan_card_no'] = strtoupper(trim((string) $validated['pan_card_no']));
+
+        $panCount = Member::whereRaw('UPPER(pan_card_no) = ?', [$validated['pan_card_no']])
+            ->whereKeyNot($member->id)
+            ->count();
+
+        if ($panCount >= 3) {
+            return back()->withErrors(['pan_card_no' => 'This PAN card number has already been used 3 times.'])->withInput();
+        }
+
+        $mobileNoValue = trim((string) $validated['mobile_no']);
+        $mobileCount = Member::where('mobile_no', $mobileNoValue)
+            ->whereKeyNot($member->id)
+            ->count();
+
+        if ($mobileCount >= 3) {
+            return back()->withErrors(['mobile_no' => 'This mobile number has already been used 3 times.'])->withInput();
+        }
+
+        $sponsorDetails = $this->resolveSponsorDetails($request);
+
+        $member->update([
+            'sponsor_id' => $sponsorDetails['sponsor_id'],
+            'sponsor_name' => $sponsorDetails['sponsor_name'],
+            'member_name' => $validated['member_name'],
+            'wallet_address' => $validated['wallet_address'] ?? null,
+            'mobile_no' => $validated['mobile_no'],
+            'pan_card_no' => $validated['pan_card_no'],
+            'email' => $validated['email'],
+            'password' => $request->filled('password') ? bcrypt($validated['password']) : $member->password,
+        ]);
+
+        return redirect()->route('admin.members.update')
+            ->with('success', 'Member profile updated successfully.');
+    }
+}
