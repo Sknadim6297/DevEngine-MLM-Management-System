@@ -10,6 +10,7 @@ use App\Http\Controllers\ActivationWalletController;
 use App\Http\Controllers\ChangePasswordController;
 use App\Http\Controllers\genealogyController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\ReportController;
 
 
 Route::get('/', function () {
@@ -283,6 +284,34 @@ Route::middleware('auth')->group(function () {
                 '/applied-tickets/export',
                 'exportAppliedTickets'
             )->name('applied-tickets.export');
+        });
+        /* 
+    |--------------------------------------------------------------------------
+    | Report
+    |--------------------------------------------------------------------------
+    */
+
+    Route::controller(ReportController::class)
+        ->prefix('admin/report')
+        ->name('admin.report.')
+        ->group(function () {
+
+            Route::get(
+                '/roi-report',
+                'roiReport'
+            )->name('roi-report');
+            Route::get(
+                '/level-income',
+                'levelIncomeReport'
+            )->name('level-income');    
+            Route::get(
+                '/salary-report',
+                'salaryReport'
+            )->name('salary');
+            Route::get(
+                '/rank-achievement',
+                'rankAchievementReport'
+            )->name('rank-achievement');
         });
 
 });

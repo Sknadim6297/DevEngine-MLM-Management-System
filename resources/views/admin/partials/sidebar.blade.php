@@ -327,22 +327,22 @@
 
         <div class="collapse submenu" id="reportsMenu">
 
-            <a href="{{ asset('admin2/Income1.html') }}">
+            <a href="{{ route('admin.report.roi-report') }}">
                 <i class="bi bi-person-lines-fill"></i>
                 <span>ROI</span>
             </a>
 
-            <a href="{{ asset('admin2/Income2.html') }}">
+            <a href="{{ route('admin.report.level-income') }}">
                 <i class="bi bi-wallet2"></i>
                 <span>Level Income</span>
             </a>
 
-            <a href="{{ asset('admin2/Income3.html') }}">
+            <a href="{{ route('admin.report.salary') }}">
                 <i class="bi bi-cash-stack"></i>
                 <span>Salary</span>
             </a>
 
-            <a href="{{ asset('admin2/RankReport.html') }}">
+            <a href="{{ route('admin.report.rank-achievement') }}">
                 <i class="bi bi-bar-chart"></i>
                 <span>Rank Achievement Report</span>
             </a>
