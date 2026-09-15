@@ -21,6 +21,7 @@ class MemberController extends Controller
                     'sponsor_name' => $member->sponsor_name,
                     'mobile' => $member->mobile_no,
                     'pan_card_no' => $member->pan_card_no,
+                    'investment_amount' => (float) ($member->investment_amount ?? 0),
                     'password' => $member->password ?? '',
                     'status' => $member->status,
                 ];
@@ -124,7 +125,10 @@ class MemberController extends Controller
 
     protected function memberList(Request $request, string $status, string $view)
     {
-        $query = Member::where('status', $status);
+        $query = Member::where('status', $status)
+            ->withSum(['investments as investment_amount' => function ($investmentQuery) {
+                $investmentQuery->where('status', 'active')->where('amount', '>=', 100);
+            }], 'amount');
         $memberName = trim((string) $request->query('member_name', ''));
         $memberId = trim((string) $request->query('member_id', ''));
 
@@ -158,7 +162,10 @@ class MemberController extends Controller
     {
         abort_unless(in_array($status, ['active', 'inactive'], true), 404);
 
-        $query = Member::where('status', $status);
+        $query = Member::where('status', $status)
+            ->withSum(['investments as investment_amount' => function ($investmentQuery) {
+                $investmentQuery->where('status', 'active')->where('amount', '>=', 100);
+            }], 'amount');
         $memberName = trim((string) $request->query('member_name', ''));
         $memberId = trim((string) $request->query('member_id', ''));
 
@@ -179,7 +186,7 @@ class MemberController extends Controller
 
         return response()->streamDownload(function () use ($members) {
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Serial No', 'Member ID', 'Member Name', 'Joining Date', 'Sponsor ID', 'Sponsor Name', 'Mobile No', 'PAN Card Number', 'Password']);
+            fputcsv($output, ['Serial No', 'Member ID', 'Member Name', 'Joining Date', 'Sponsor ID', 'Sponsor Name', 'Mobile No', 'PAN Card Number', 'Investment Amount (USDT)', 'Password']);
 
             foreach ($members as $index => $member) {
                 fputcsv($output, [
@@ -191,6 +198,7 @@ class MemberController extends Controller
                     $member->sponsor_name,
                     $member->mobile_no,
                     $member->pan_card_no,
+                    $this->formatUsdt($member->investment_amount ?? 0),
                     $member->password,
                 ]);
             }
@@ -229,6 +237,11 @@ class MemberController extends Controller
             'default_sponsor_id' => $defaultSponsorId,
             'default_sponsor_name' => $this->resolveSponsorName($defaultSponsorId),
         ]);
+    }
+
+    protected function formatUsdt($amount): string
+    {
+        return rtrim(rtrim(number_format((float) $amount, 4, '.', ''), '0'), '.') ?: '0';
     }
 
     public function update()

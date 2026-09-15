@@ -33,4 +33,9 @@ class Member extends Model
     {
         return $this->hasMany(Member::class, 'sponsor_id', 'member_id');
     }
+
+    public function investments(): HasMany
+    {
+        return $this->hasMany(Investment::class, 'member_id', 'member_id');
+    }
 }

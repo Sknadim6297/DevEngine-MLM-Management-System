@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\InvestmentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ActivationWalletController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -66,4 +68,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/store', 'store')->name('store');
         Route::post('/update-member', 'updateMember')->name('update-member');
     });
+
+    Route::controller(InvestmentController::class)->prefix('admin/investments')->name('admin.investments.')->group(function () {
+        Route::get('/entry', 'investmentEntry')->name('entry');
+        Route::get('/member-lookup', 'memberLookup')->name('member-lookup');
+        Route::post('/store', 'storeInvestment')->name('store');
+        Route::get('/active-investments/export', 'exportActiveInvestments')->name('active-investments.export');
+        Route::get('/active-investments', 'activeInvestments')->name('active-investments');
+    });
+
+    Route::controller(ActivationWalletController::class)->prefix('admin/activation-wallet')->name('admin.activation-wallet.')->group(function () {
+        Route::get('/credit-entry', 'creditEntry')->name('credit-entry');
+    }); 
+
 });

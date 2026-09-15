@@ -1,7 +1,7 @@
 <aside id="desktopSidebar" class="sidebar desktop-sidebar">
 
     <div class="sidebar-logo">
-        <span class="logo-text">DevEngine</span>
+        <img src="{{ asset('assets/img/logo.png') }}" class="sidebar-logo-image" alt="DevEngine Logo">
     </div>
 
     <div class="sidebar-menu">
@@ -78,7 +78,7 @@
 
         <div class="collapse submenu" id="activationWalletMenu">
 
-            <a href="{{ asset('admin2/AmountEntry.html') }}">
+            <a href="{{ route('admin.activation-wallet.credit-entry') }}">
                 <i class="bi bi-wallet2"></i>
                 <span>Transfer to Activation Wallet Entry</span>
             </a>
@@ -115,12 +115,12 @@
 
         <div class="collapse submenu" id="investmentMenu">
 
-            <a href="{{ asset('admin2/Investment2.html') }}">
+            <a href="{{ route('admin.investments.entry') }}">
                 <i class="bi bi-plus-circle"></i>
                 <span>Investment Entry</span>
             </a>
 
-            <a href="{{ asset('admin2/InvestmentReport2.html') }}">
+            <a href="{{ route('admin.investments.active-investments') }}">
                 <i class="bi bi-list-ul"></i>
                 <span>Active Investment List</span>
             </a>

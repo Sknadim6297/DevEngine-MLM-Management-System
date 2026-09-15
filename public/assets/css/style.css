@@ -51,6 +51,12 @@ a {
     background: linear-gradient( 135deg, #d4145a, #f472b6 );
 }
 
+.sidebar-logo-image {
+    width: 80px;
+    height: auto;
+    display: block;
+}
+
 
 /* MENU */
 
@@ -555,7 +561,7 @@ body.sidebar-collapsed .desktop-sidebar {
         justify-content: center;
     }
 
-    body.sidebar-collapsed .desktop-sidebar .logo-text {
+    body.sidebar-collapsed .desktop-sidebar .sidebar-logo-image {
         display: none;
     }
 

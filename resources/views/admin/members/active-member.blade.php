@@ -46,6 +46,7 @@
                             <th>Sponsor Name</th>
                             <th>Mobile No</th>
                             <th>PAN Card Number</th>
+                            <th>Investment Amount (USDT)</th>
                             <th>Password</th>
                         </tr>
                     </thead>
@@ -63,6 +64,7 @@
                                 <td>{{ $member['sponsor_name'] }}</td>
                                 <td>{{ $member['mobile'] }}</td>
                                 <td>{{ $member['pan_card_no'] }}</td>
+                                <td>{{ rtrim(rtrim(number_format($member['investment_amount'], 4, '.', ''), '0'), '.') ?: '0' }} USDT</td>
                                 <td>
                                     <span class="password-value" data-password="{{ $member['password'] }}">******</span>
                                     <button type="button" class="btn btn-link p-0 ms-1 password-toggle" aria-label="Show password" title="Show password">
@@ -72,7 +74,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center">No active members found.</td>
+                                <td colspan="11" class="text-center">No active members found.</td>
                             </tr>
                         @endforelse
                     </tbody>
