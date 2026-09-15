@@ -360,12 +360,12 @@
 
         <div class="collapse submenu" id="notificationMenu">
 
-            <a href="{{ asset('admin2/PendTicket.html') }}">
+            <a href="{{ route('admin.support.pending-tickets') }}">
                 <i class="bi bi-headset"></i>
                 <span>Pending Ticket List</span>
             </a>
 
-            <a href="{{ asset('admin2/CloseTicket.html') }}">
+            <a href="{{ route('admin.support.applied-tickets') }}">
                 <i class="bi bi-bell"></i>
                 <span>Applied Ticket List</span>
             </a>
