@@ -33,6 +33,7 @@
                 <input type="text"
                       id="memberId"
                       name="member_id"
+                      data-error-for="member_id"
                        class="form-control"
                        placeholder="Enter Member ID">
             </div>
@@ -77,6 +78,7 @@
                 <input type="number"
                        id="transferAmount"
                       name="amount"
+                      data-error-for="amount"
                        class="form-control"
                        placeholder="Enter Amount">
             </div>
@@ -127,16 +129,22 @@
         const resetButton = document.getElementById('resetActivationWalletForm');
         const actionButton = fetchMemberDetailsButton;
         let fetchedMemberId = null;
+        let memberLookupTimer = null;
 
-        function setError(field, message) {
-            let error = document.getElementById(field + 'Error');
+        function setError(fieldName, message = '') {
+            const target = document.querySelector('[data-error-for="' + fieldName + '"]');
+            if (!target) {
+                return;
+            }
+
+            let error = target.parentElement.querySelector('.validation-message');
             if (!error) {
                 error = document.createElement('div');
-                error.id = field + 'Error';
                 error.className = 'text-danger mt-1 small validation-message';
-                document.getElementById(field).parentElement.appendChild(error);
+                target.parentElement.appendChild(error);
             }
-            error.textContent = message || '';
+
+            error.textContent = message;
             error.style.display = message ? 'block' : 'none';
         }
 
@@ -152,37 +160,88 @@
             actionButton.innerHTML = '<i class="bi bi-arrow-right-circle"></i> Submit';
         }
 
-        function validateMemberId() {
+        function validateMemberId(force = false) {
             const value = memberIdInput.value.trim();
+
             if (!value) {
-                setError('memberId', 'Member ID is required.');
+                setError('member_id', force ? 'Member ID is required.' : '');
                 return false;
             }
-            setError('memberId', '');
+
+            if (!/^ST\d{6}$/.test(value)) {
+                setError('member_id', 'The selected member id is invalid.');
+                return false;
+            }
+
+            setError('member_id', '');
             return true;
         }
 
-        function validateTransferAmount() {
+        function validateTransferAmount(force = false) {
             const value = transferAmountInput.value.trim();
+
             if (!value) {
-                setError('transferAmount', 'Transfer amount is required.');
+                setError('amount', force ? 'Transfer amount is required.' : '');
                 return false;
             }
+
             if (!/^\d+(\.\d{1,4})?$/.test(value) || Number(value) <= 0) {
-                setError('transferAmount', 'Enter a valid transfer amount greater than 0.');
+                setError('amount', 'Enter a valid transfer amount greater than 0.');
                 return false;
             }
-            setError('transferAmount', '');
+
+            setError('amount', '');
             return true;
+        }
+
+        function lookupMember() {
+            const value = memberIdInput.value.trim();
+            if (!value || !/^ST\d{6}$/.test(value)) {
+                return;
+            }
+
+            clearTimeout(memberLookupTimer);
+            memberLookupTimer = setTimeout(function () {
+                fetch('{{ route('admin.activation-wallet.credit-entry.member-lookup') }}?member_id=' + encodeURIComponent(value), {
+                    headers: { 'Accept': 'application/json' }
+                }).then(function (response) {
+                    return response.json().then(function (data) {
+                        if (!response.ok) {
+                            throw new Error(data.message || 'The selected member id is invalid.');
+                        }
+                        return data;
+                    });
+                }).then(function (member) {
+                    memberNameInput.value = member.member_name;
+                    walletAmountInput.value = formatAmount(member.activation_wallet_amount);
+                    fetchedMemberId = member.member_id;
+                    actionButton.type = 'submit';
+                    actionButton.innerHTML = '<i class="bi bi-arrow-right-circle"></i> Transfer';
+                    setError('member_id', '');
+                }).catch(function (error) {
+                    clearMemberDetails();
+                    setError('member_id', error.message || 'The selected member id is invalid.');
+                });
+            }, 250);
         }
 
         memberIdInput.addEventListener('input', function () {
             clearMemberDetails();
             validateMemberId();
+            lookupMember();
         });
-        memberIdInput.addEventListener('blur', validateMemberId);
-        transferAmountInput.addEventListener('input', validateTransferAmount);
-        transferAmountInput.addEventListener('blur', validateTransferAmount);
+
+        memberIdInput.addEventListener('blur', function () {
+            validateMemberId(true);
+        });
+
+        transferAmountInput.addEventListener('input', function () {
+            validateTransferAmount();
+        });
+
+        transferAmountInput.addEventListener('blur', function () {
+            validateTransferAmount(true);
+        });
 
         fetchMemberDetailsButton.addEventListener('click', function (event) {
             if (fetchedMemberId && fetchedMemberId === memberIdInput.value.trim()) {
@@ -191,43 +250,33 @@
 
             event.preventDefault();
             clearMemberDetails();
-            if (!validateMemberId()) return;
+            if (!validateMemberId(true)) {
+                return;
+            }
 
-            fetch('{{ route('admin.activation-wallet.credit-entry.member-lookup') }}?member_id=' + encodeURIComponent(memberIdInput.value.trim()), {
-                headers: { 'Accept': 'application/json' }
-            }).then(function (response) {
-                return response.json().then(function (data) {
-                    if (!response.ok) throw new Error(data.message || 'Member not found.');
-                    return data;
-                });
-            }).then(function (member) {
-                memberIdInput.value = member.member_id;
-                memberNameInput.value = member.member_name;
-                walletAmountInput.value = formatAmount(member.activation_wallet_amount);
-                fetchedMemberId = member.member_id;
-                actionButton.type = 'submit';
-                actionButton.innerHTML = '<i class="bi bi-arrow-right-circle"></i> Transfer';
-                setError('memberId', '');
-            }).catch(function (error) {
-                clearMemberDetails();
-                setError('memberId', error.message || 'Member not found.');
-            });
+            lookupMember();
         });
 
         resetButton.addEventListener('click', function () {
             activationWalletForm.reset();
             clearMemberDetails();
-            setError('memberId', '');
-            setError('transferAmount', '');
+            setError('member_id', '');
+            setError('amount', '');
         });
 
         activationWalletForm.addEventListener('submit', function (event) {
-            if (!fetchedMemberId || fetchedMemberId !== memberIdInput.value.trim() || !validateTransferAmount()) {
+            if (!fetchedMemberId || fetchedMemberId !== memberIdInput.value.trim() || !validateTransferAmount(true)) {
                 event.preventDefault();
-                if (!fetchedMemberId) setError('memberId', 'Fetch a valid member before transferring.');
+                if (!fetchedMemberId) {
+                    validateMemberId(true);
+                }
                 return;
             }
-            actionButton.disabled = true;
+
+            if (!validateMemberId(true)) {
+                event.preventDefault();
+                return;
+            }
         });
     </script>
 @endsection

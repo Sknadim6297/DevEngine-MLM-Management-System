@@ -20,7 +20,7 @@ class ActivationWalletController extends Controller
         $member = Member::where('member_id', $memberId)->first();
 
         if (! $member) {
-            return response()->json(['message' => 'Member not found.'], 404);
+            return response()->json(['message' => 'The selected member id is invalid.'], 404);
         }
 
         return response()->json([
@@ -35,6 +35,9 @@ class ActivationWalletController extends Controller
         $validated = $request->validate([
             'member_id' => ['required', 'string', 'exists:members,member_id'],
             'amount' => ['required', 'numeric', 'gt:0'],
+        ], [
+            'member_id.exists' => 'The selected member id is invalid.',
+            'amount.gt' => 'Transfer amount must be greater than 0.',
         ]);
 
         $transaction = DB::transaction(function () use ($validated) {

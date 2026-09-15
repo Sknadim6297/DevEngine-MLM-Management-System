@@ -5,7 +5,8 @@ use App\Http\Controllers\InvestmentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-USE App\Http\Controllers\ActivationWalletController;
+use App\Http\Controllers\ActivationWalletController;
+use App\Http\Controllers\ChangePasswordController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -85,5 +86,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/credit-entry/list', 'listCreditEntries')->name('credit-entry.list');
 
     }); 
+
+    Route::controller(ChangePasswordController::class)->prefix('admin/change-password')->name('admin.change-password.')->group(function () {
+        Route::get('/change-password', 'index')->name('index');
+        Route::post('/update-password', 'update')->name('update');
+    });
     
 });

@@ -372,7 +372,7 @@
 
         </div>
 
-        <a href="{{ asset('admin2/ChangePassword.html') }}">
+        <a href="{{ route('admin.change-password.index') }}">
             <i class="bi bi-exclamation-circle"></i>
             <span>Change Password</span>
         </a>

@@ -10,15 +10,36 @@ use Illuminate\Validation\Rule;
 
 class InvestmentController extends Controller
 {
-    public function investmentEntry()
+    public function investmentEntry(Request $request)
     {
+        $investmentId = trim((string) $request->old('investment_id', ''));
+
+        if ($investmentId === '') {
+            $investmentId = trim((string) $request->session()->get('generated_investment_id', ''));
+        }
+
+        if ($investmentId === '') {
+            $investmentId = $this->generateInvestmentId();
+            $request->session()->put('generated_investment_id', $investmentId);
+        }
+
         return view('admin.invesment.investment-entry', [
-            'investmentId' => $this->generateInvestmentId(),
+            'investmentId' => $investmentId,
         ]);
     }
 
     public function storeInvestment(Request $request)
     {
+        $investmentId = trim((string) $request->input('investment_id', ''));
+
+        if ($investmentId === '') {
+            $investmentId = trim((string) $request->session()->get('generated_investment_id', ''));
+        }
+
+        if ($investmentId === '') {
+            $investmentId = $this->generateInvestmentId();
+        }
+
         $validatedData = $request->validate([
             'investment_id' => [
                 'required',
@@ -28,7 +49,12 @@ class InvestmentController extends Controller
             ],
             'member_id' => ['required', 'string', 'exists:members,member_id'],
             'amount' => ['required', 'numeric', 'min:100'],
+        ], [
+            'member_id.exists' => 'The selected member id is invalid.',
+            'amount.min' => 'Investment Amount must be at least 100 USDT.',
         ]);
+
+        $validatedData['investment_id'] = $investmentId;
 
         DB::transaction(function () use ($validatedData) {
             $member = Member::where('member_id', $validatedData['member_id'])
@@ -48,6 +74,8 @@ class InvestmentController extends Controller
             }
         });
 
+        $request->session()->forget('generated_investment_id');
+
         return redirect()->route('admin.investments.entry')->with('success', 'Investment entry created successfully.');
     }
 
@@ -58,7 +86,7 @@ class InvestmentController extends Controller
 
         if (! $member) {
             return response()->json([
-                'message' => 'Member ID not found.',
+                'message' => 'The selected member id is invalid.',
             ], 404);
         }
 
