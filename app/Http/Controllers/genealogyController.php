@@ -34,6 +34,11 @@ class genealogyController extends Controller
         ]);
     }
 
+    public function levelView(Request $request)
+    {
+        return view('admin.genealogy.level-view');
+    }
+
     protected function buildRootTree(): array
     {
         $memberIds = Member::query()->pluck('member_id')->all();

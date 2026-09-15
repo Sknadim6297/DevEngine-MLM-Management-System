@@ -60,7 +60,7 @@
                 <span>Tree View</span>
             </a>
 
-            <a href="{{ asset('admin2/LevelView.html') }}">
+            <a href="{{ route('admin.genealogy.level-view') }}">
                 <i class="bi bi-people"></i>
                 <span>Level View</span>
             </a>

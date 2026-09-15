@@ -251,6 +251,10 @@ Route::middleware('auth')->group(function () {
                 '/tree-view',
                 'index'
             )->name('tree-view');
+            Route::get(
+                '/level-view',
+                'levelView'
+            )->name('level-view');
         });
 
 
