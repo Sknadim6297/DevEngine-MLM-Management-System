@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ActivationWalletController;
 use App\Http\Controllers\ChangePasswordController;
+use App\Http\Controllers\genealogyController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -92,4 +93,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/update-password', 'update')->name('update');
     });
     
+  Route::controller(genealogyController::class)->prefix('admin/genealogy')->name('admin.genealogy.')->group(function () {
+        Route::get('/tree-view', 'index')->name('tree-view');
+    });
 });
+

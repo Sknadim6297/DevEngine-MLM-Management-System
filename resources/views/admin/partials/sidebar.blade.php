@@ -55,7 +55,7 @@
 
         <div class="collapse submenu" id="genealogyMenu">
 
-            <a href="{{ asset('admin2/TreeView.html') }}">
+            <a href="{{ route('admin.genealogy.tree-view') }}">
                 <i class="bi bi-diagram-3"></i>
                 <span>Tree View</span>
             </a>
