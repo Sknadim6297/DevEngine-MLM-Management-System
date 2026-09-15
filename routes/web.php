@@ -5,7 +5,7 @@ use App\Http\Controllers\InvestmentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ActivationWalletController;
+USE App\Http\Controllers\ActivationWalletController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -63,7 +63,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/export/{status}', 'export')->name('export');
         Route::get('/registration', 'registration')->name('registration');
         Route::get('/update', 'update')->name('update');
-        Route::get('/fetch-details', 'fetchMemberDetails')->name('fetch-details');
         Route::get('/check-member-id', 'checkMemberIdAvailability')->name('check-member-id');
         Route::get('/check-sponsor-id', 'checkSponsorIdAvailability')->name('check-sponsor-id');
         Route::post('/store', 'store')->name('store');
@@ -80,6 +79,11 @@ Route::middleware('auth')->group(function () {
 
     Route::controller(ActivationWalletController::class)->prefix('admin/activation-wallet')->name('admin.activation-wallet.')->group(function () {
         Route::get('/credit-entry', 'creditEntry')->name('credit-entry');
-    }); 
+        Route::get('/credit-entry/member-lookup', 'memberLookup')->name('credit-entry.member-lookup');
+        Route::post('/credit-entry', 'storeCreditEntry')->name('store-credit-entry');
+        Route::get('/credit-entry/export', 'exportCreditEntries')->name('credit-entry.export');
+        Route::get('/credit-entry/list', 'listCreditEntries')->name('credit-entry.list');
 
+    }); 
+    
 });

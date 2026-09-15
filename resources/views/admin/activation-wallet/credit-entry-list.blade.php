@@ -10,11 +10,16 @@
 
     <div class="form-card">
 
+        @if (isset($errors) && $errors->any())
+            <div class="alert alert-danger">{{ $errors->first() }}</div>
+        @endif
+
         <!-- TITLE -->
         
 
 
         <!-- SEARCH AREA -->
+        <form method="GET" action="{{ route('admin.activation-wallet.credit-entry.list') }}" id="activationWalletListForm">
         <div class="row align-items-end">
 
             <!-- MEMBER ID -->
@@ -22,7 +27,8 @@
                 <label>Member ID</label>
 
                 <input type="text"
-                     
+                      name="member_id"
+                      value="{{ request('member_id') }}"
                        class="form-control"
                        placeholder="Enter Member ID">
             </div>
@@ -33,7 +39,8 @@
                 <label>From Transfer Date</label>
 
                 <input type="date"
-                      
+                      name="from_date"
+                      value="{{ request('from_date') }}"
                        class="form-control">
             </div>
 
@@ -43,7 +50,8 @@
                 <label>To Transfer Date</label>
 
                 <input type="date"
-                       
+                      name="to_date"
+                      value="{{ request('to_date') }}"
                        class="form-control">
             </div>
 
@@ -59,7 +67,7 @@
 
             <button type="button"
                     class="btn btn-primary"
-                    ">
+                    onclick="window.location.href='{{ route('admin.activation-wallet.credit-entry.export') }}?' + new URLSearchParams(new FormData(document.getElementById('activationWalletListForm'))).toString()">
 
                 <i class="bi bi-file-earmark-excel"></i>
                 Export to Excel
@@ -67,9 +75,9 @@
             </button>
 
 
-            <button type="button"
+                <button type="submit"
                     class="btn btn-primary"
-                    onclick="searchInvestment()">
+                    >
 
                 <i class="bi bi-search"></i>
                 Search
@@ -77,9 +85,9 @@
             </button>
 
 
-            <button type="button"
+                <button type="button"
                     class="btn btn-primary"
-                   ">
+                    onclick="window.location.href='{{ route('admin.activation-wallet.credit-entry.list') }}'">
 
                 <i class="bi bi-arrow-counterclockwise"></i>
                 Reset
@@ -87,6 +95,7 @@
             </button>
 
         </div>
+        </form>
 
           <div class="col-md-2 mb-3">
 
@@ -94,7 +103,7 @@
 
                     <span>Total Amount (USDT)</span>
 
-                    <strong>160838.6922</strong>
+                    <strong>{{ rtrim(rtrim(number_format($totalAmount, 4, '.', ''), '0'), '.') ?: '0' }}</strong>
 
                 </div>
 
@@ -115,30 +124,19 @@
         </thead>
 
         <tbody>
-
-            <tr>
-                <td>1</td>
-                <td>MB10001</td>
-                <td>Rahul Das</td>
-                <td>500.0000</td>
-                <td>20-Aug-2026</td>
-            </tr>
-
-            <tr>
-                <td>2</td>
-                <td>MB10002</td>
-                <td>Sumit Ghosh</td>
-                <td>750.0000</td>
-                <td>21-Aug-2026</td>
-            </tr>
-
-            <tr>
-                <td>3</td>
-                <td>MB10003</td>
-                <td>Priya Das</td>
-                <td>1000.0000</td>
-                <td>22-Aug-2026</td>
-            </tr>
+            @forelse ($transactions as $transaction)
+                <tr>
+                    <td>{{ $transactions->firstItem() + $loop->index }}</td>
+                    <td>{{ $transaction->member_id }}</td>
+                    <td>{{ $transaction->member_name }}</td>
+                    <td>{{ rtrim(rtrim(number_format((float) $transaction->amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
+                    <td>{{ $transaction->created_at?->format('d-M-Y H:i:s') }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="5" class="text-center">No activation wallet transfers found.</td>
+                </tr>
+            @endforelse
 
         </tbody>
 
@@ -151,26 +149,12 @@
         <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
 
             <div class="table-info">
-                Showing 1 to 3 of 3 entries
+                Showing {{ $transactions->firstItem() ?? 0 }} to {{ $transactions->lastItem() ?? 0 }} of {{ $transactions->total() }} entries
             </div>
 
             <nav>
 
-                <ul class="pagination pagination-sm mb-0">
-
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Previous</a>
-                    </li>
-
-                    <li class="page-item active">
-                        <a class="page-link" href="#">1</a>
-                    </li>
-
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Next</a>
-                    </li>
-
-                </ul>
+                {{ $transactions->links('pagination::bootstrap-5') }}
 
             </nav>
 
@@ -185,5 +169,4 @@
 
 
        </main>
-
 @endsection

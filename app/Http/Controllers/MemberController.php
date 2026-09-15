@@ -244,6 +244,21 @@ class MemberController extends Controller
         return rtrim(rtrim(number_format((float) $amount, 4, '.', ''), '0'), '.') ?: '0';
     }
 
+    protected function memberValidationRules(?Member $member = null): array
+    {
+        return [
+            'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
+            'sponsor_id' => ['nullable', 'string'],
+            'wallet_address' => ['nullable', 'string', 'max:255'],
+            'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
+            'pan_card_no' => ['required', 'string', 'max:10'],
+            'email' => $member
+                ? ['required', 'email', Rule::unique('members', 'email')->ignore($member->id)]
+                : ['required', 'email', 'unique:members,email'],
+            'password' => ['nullable', 'string', 'min:6'],
+        ];
+    }
+
     public function update()
     {
         return view('admin.members.member_update', ['member' => []]);
@@ -349,15 +364,7 @@ class MemberController extends Controller
             $generatedMemberId = $this->generateMemberId();
         }
 
-        $validated = $request->validate([
-            'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
-            'sponsor_id' => ['nullable', 'string'],
-            'wallet_address' => ['nullable', 'string', 'max:255'],
-            'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
-            'pan_card_no' => ['required', 'string', 'max:10'],
-            'email' => ['required', 'email', 'unique:members,email'],
-            'password' => ['nullable', 'string', 'min:6'],
-        ]);
+        $validated = $request->validate($this->memberValidationRules());
 
         if (mb_strlen(trim((string) $validated['pan_card_no'])) !== 10) {
             return back()->withErrors(['pan_card_no' => 'PAN Card Number must be exactly 10 characters.'])->withInput();
@@ -406,25 +413,20 @@ class MemberController extends Controller
 
     public function updateMember(Request $request)
     {
+        $memberId = trim((string) $request->input('member_id'));
+        $request->merge(['member_id' => $memberId]);
+
         $request->validate([
             'member_id' => ['required', 'string', 'min:6', 'exists:members,member_id'],
         ]);
 
-        $member = Member::where('member_id', $request->member_id)->first();
+        $member = Member::where('member_id', $memberId)->first();
 
         if (! $member) {
             return back()->withErrors(['member_id' => 'Member not found.'])->withInput();
         }
 
-        $validated = $request->validate([
-            'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
-            'sponsor_id' => ['nullable', 'string'],
-            'wallet_address' => ['nullable', 'string', 'max:255'],
-            'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
-            'pan_card_no' => ['required', 'string', 'max:10'],
-            'email' => ['required', 'email', Rule::unique('members', 'email')->ignore($member->id)],
-            'password' => ['nullable', 'string', 'min:6'],
-        ]);
+        $validated = $request->validate($this->memberValidationRules($member));
 
         if (mb_strlen(trim((string) $validated['pan_card_no'])) !== 10) {
             return back()->withErrors(['pan_card_no' => 'PAN Card Number must be exactly 10 characters.'])->withInput();
@@ -451,7 +453,7 @@ class MemberController extends Controller
 
         $sponsorDetails = $this->resolveSponsorDetails($request);
 
-        $member->update([
+        $memberData = [
             'sponsor_id' => $sponsorDetails['sponsor_id'],
             'sponsor_name' => $sponsorDetails['sponsor_name'],
             'member_name' => $validated['member_name'],
@@ -459,8 +461,13 @@ class MemberController extends Controller
             'mobile_no' => $validated['mobile_no'],
             'pan_card_no' => $validated['pan_card_no'],
             'email' => $validated['email'],
-            'password' => $request->filled('password') ? bcrypt($validated['password']) : $member->password,
-        ]);
+        ];
+
+        if ($request->filled('password')) {
+            $memberData['password'] = bcrypt($validated['password']);
+        }
+
+        $member->update($memberData);
 
         return redirect()->route('admin.members.update')
             ->with('success', 'Member profile updated successfully.');

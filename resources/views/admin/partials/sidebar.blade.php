@@ -83,7 +83,7 @@
                 <span>Transfer to Activation Wallet Entry</span>
             </a>
 
-            <a href="{{ asset('admin2/AmountList.html') }}">
+            <a href="{{ route('admin.activation-wallet.credit-entry.list') }}">
                 <i class="bi bi-arrow-right-circle"></i>
                 <span>Transfer to Activation Wallet from admin list</span>
             </a>

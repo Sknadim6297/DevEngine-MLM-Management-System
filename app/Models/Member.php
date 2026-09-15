@@ -17,6 +17,7 @@ class Member extends Model
         'sponsor_name',
         'member_name',
         'wallet_address',
+        'activation_wallet_amount',
         'mobile_no',
         'pan_card_no',
         'email',
