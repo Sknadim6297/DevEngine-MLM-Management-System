@@ -63,6 +63,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/export/{status}', 'export')->name('export');
         Route::get('/registration', 'registration')->name('registration');
         Route::get('/update', 'update')->name('update');
+        Route::get('/fetch-details', 'fetchMemberDetails')->name('fetch-details');
         Route::get('/check-member-id', 'checkMemberIdAvailability')->name('check-member-id');
         Route::get('/check-sponsor-id', 'checkSponsorIdAvailability')->name('check-sponsor-id');
         Route::post('/store', 'store')->name('store');

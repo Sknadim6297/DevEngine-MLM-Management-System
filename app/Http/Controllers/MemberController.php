@@ -246,19 +246,29 @@ class MemberController extends Controller
 
     public function update()
     {
-        $member = Member::orderByDesc('id')->first();
+        return view('admin.members.member_update', ['member' => []]);
+    }
 
-        return view('admin.members.member_update', [
-            'member' => $member ? [
-                'member_id' => $member->member_id,
-                'sponsor_id' => $member->sponsor_id,
-                'sponsor_name' => $member->sponsor_name,
-                'name' => $member->member_name,
-                'wallet' => $member->wallet_address,
-                'mobile' => $member->mobile_no,
-                'pan_card_no' => $member->pan_card_no,
-                'email' => $member->email,
-            ] : [],
+    public function fetchMemberDetails(Request $request)
+    {
+        $memberId = trim((string) $request->query('member_id', ''));
+        $member = Member::where('member_id', $memberId)->first();
+
+        if (! $member) {
+            return response()->json([
+                'message' => 'Member not found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'member_id' => $member->member_id,
+            'sponsor_id' => $member->sponsor_id,
+            'sponsor_name' => $member->sponsor_name,
+            'name' => $member->member_name,
+            'wallet' => $member->wallet_address,
+            'mobile' => $member->mobile_no,
+            'pan_card_no' => $member->pan_card_no,
+            'email' => $member->email,
         ]);
     }
 
