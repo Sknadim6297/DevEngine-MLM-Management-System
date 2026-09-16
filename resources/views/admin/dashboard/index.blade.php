@@ -251,7 +251,7 @@
                                     </span>
 
                                     <span class="stat-value">
-                                        N/A
+                                        ${{ number_format((float) ($roiWalletTotal ?? 0), 2) }}
                                     </span>
 
                                 </div>

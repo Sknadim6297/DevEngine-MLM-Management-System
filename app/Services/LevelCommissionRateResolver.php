@@ -2,16 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\LevelCommission;
+
 class LevelCommissionRateResolver
 {
     public static function forLevel(int $level): string
     {
-        $configuredRates = config('level_commission.rates', []);
-
-        $rate = $configuredRates[$level]
-            ?? ($level <= 20 ? ($configuredRates['5-20'] ?? null) : ($configuredRates['21-32'] ?? null));
-
-        return (string) ($rate ?? '0');
+        return (string) (LevelCommission::query()
+            ->active()
+            ->where('level', $level)
+            ->value('percentage') ?? '0');
     }
 
     public static function forLevelAsFloat(int $level): float
@@ -21,6 +21,6 @@ class LevelCommissionRateResolver
 
     public static function maxLevel(): int
     {
-        return 32;
+        return (int) (LevelCommission::query()->max('level') ?? 0);
     }
 }

@@ -40,7 +40,6 @@ class InvestmentEntryTest extends TestCase
             'investment_id' => 'INV100001',
             'member_id' => $member->member_id,
             'member_name' => 'Incorrect Name',
-            'category' => 'Group A',
             'amount' => 100,
         ])->assertRedirect(route('admin.investments.entry'));
 
@@ -48,7 +47,6 @@ class InvestmentEntryTest extends TestCase
             'investment_id' => 'INV100001',
             'member_id' => $member->member_id,
             'member_name' => 'Rahul Das',
-            'category' => 'Group A',
             'amount' => 100,
             'status' => 'active',
         ]);
@@ -57,9 +55,7 @@ class InvestmentEntryTest extends TestCase
             'status' => 'active',
         ]);
         $this->get(route('admin.members.active'))->assertSeeText('Rahul Das');
-        $this->get(route('admin.investments.active-investments'))
-            ->assertSeeText('INV100001')
-            ->assertSeeText('Group A');
+        $this->get(route('admin.investments.active-investments'))->assertSeeText('INV100001');
     }
 
     public function test_amounts_below_minimum_are_rejected_without_creating_or_activating(): void
@@ -71,7 +67,6 @@ class InvestmentEntryTest extends TestCase
             $this->post(route('admin.investments.store'), [
                 'investment_id' => 'INV' . $amount,
                 'member_id' => $member->member_id,
-                'category' => 'Group A',
                 'amount' => $amount,
             ])->assertSessionHasErrors('amount');
         }
@@ -90,7 +85,6 @@ class InvestmentEntryTest extends TestCase
         $this->post(route('admin.investments.store'), [
             'investment_id' => 'INV100002',
             'member_id' => 'ST999999',
-            'category' => 'Group A',
             'amount' => 150,
         ])->assertSessionHasErrors('member_id');
 
@@ -118,7 +112,6 @@ class InvestmentEntryTest extends TestCase
         $this->post(route('admin.investments.store'), [
             'investment_id' => 'INV100003',
             'member_id' => $member->member_id,
-            'category' => 'Group B',
             'amount' => 150,
         ])->assertRedirect();
 
@@ -127,47 +120,5 @@ class InvestmentEntryTest extends TestCase
             'status' => 'active',
         ]);
         $this->assertDatabaseCount('investments', 1);
-    }
-
-    public function test_group_a_and_group_b_categories_are_stored_without_changing_on_reload(): void
-    {
-        $this->signIn();
-        $member = $this->member();
-
-        foreach (['Group A', 'Group B'] as $index => $category) {
-            $this->post(route('admin.investments.store'), [
-                'investment_id' => 'INV20000' . $index,
-                'member_id' => $member->member_id,
-                'category' => $category,
-                'amount' => 100,
-            ])->assertRedirect(route('admin.investments.entry'));
-
-            $this->assertDatabaseHas('investments', [
-                'investment_id' => 'INV20000' . $index,
-                'category' => $category,
-            ]);
-        }
-
-        $this->get(route('admin.investments.active-investments'))
-            ->assertOk()
-            ->assertSeeText('Group A')
-            ->assertSeeText('Group B');
-    }
-
-    public function test_category_is_required_and_only_group_a_or_group_b_is_accepted(): void
-    {
-        $this->signIn();
-        $member = $this->member();
-
-        foreach ([null, '', 'Plan A', 'group a'] as $index => $category) {
-            $this->post(route('admin.investments.store'), [
-                'investment_id' => 'INV30000' . $index,
-                'member_id' => $member->member_id,
-                'category' => $category,
-                'amount' => 100,
-            ])->assertSessionHasErrors('category');
-        }
-
-        $this->assertDatabaseCount('investments', 0);
     }
 }

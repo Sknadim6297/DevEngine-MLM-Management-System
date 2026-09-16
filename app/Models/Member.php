@@ -19,11 +19,18 @@ class Member extends Model
         'wallet_address',
         'activation_wallet_amount',
         'working_wallet_amount',
+        'roi_wallet_amount',
         'mobile_no',
         'pan_card_no',
         'email',
         'password',
         'status',
+    ];
+
+    protected $casts = [
+        'activation_wallet_amount' => 'decimal:4',
+        'working_wallet_amount' => 'decimal:4',
+        'roi_wallet_amount' => 'decimal:4',
     ];
 
     public function sponsor(): BelongsTo
@@ -39,5 +46,10 @@ class Member extends Model
     public function investments(): HasMany
     {
         return $this->hasMany(Investment::class, 'member_id', 'member_id');
+    }
+
+    public function roiTransactions(): HasMany
+    {
+        return $this->hasMany(RoiTransaction::class, 'member_id', 'member_id');
     }
 }

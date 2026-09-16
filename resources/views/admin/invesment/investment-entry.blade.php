@@ -61,22 +61,6 @@
                       readonly>
             </div>
 
-
-            <!-- CATEGORY -->
-            <div class="col-md-6 mb-3">
-                <label>Category</label>
-
-                <select id="investmentCategory"
-                        name="category"
-                        class="form-control"
-                        required>
-                    <option value="">Select Category</option>
-                    <option value="Group A" @selected(old('category') === 'Group A')>Group A</option>
-                    <option value="Group B" @selected(old('category') === 'Group B')>Group B</option>
-                </select>
-            </div>
-
-
             <!-- INVESTMENT AMOUNT -->
             <div class="col-md-6 mb-3">
                 <label>Investment Amount (USDT)</label>

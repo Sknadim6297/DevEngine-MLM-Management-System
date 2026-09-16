@@ -19,6 +19,8 @@ class RoiTransaction extends Model
         'rate_percentage',
         'income_amount',
         'roi_date',
+        'status',
+        'withdrawable_on',
     ];
 
     protected $casts = [
@@ -26,6 +28,7 @@ class RoiTransaction extends Model
         'rate_percentage' => 'decimal:3',
         'income_amount' => 'decimal:4',
         'roi_date' => 'date',
+        'withdrawable_on' => 'date',
     ];
 
     public function member(): BelongsTo

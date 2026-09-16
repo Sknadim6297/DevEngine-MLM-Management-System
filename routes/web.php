@@ -86,6 +86,7 @@ Route::middleware('auth')->group(function () {
         return view('admin.dashboard.index', [
             'activationWalletTotal' => (float) \App\Models\Member::sum('activation_wallet_amount'),
             'workingWalletTotal' => (float) \App\Models\Member::sum('working_wallet_amount'),
+            'roiWalletTotal' => (float) \App\Models\Member::sum('roi_wallet_amount'),
         ]);
     })->name('dashboard');
 
@@ -328,6 +329,11 @@ Route::middleware('auth')->group(function () {
         '/admin/level-commission/statement',
         [LevelCommissionController::class, 'statement']
     )->name('admin.level-commission.statement');
+
+    Route::post(
+        '/admin/level-commission/statement/{levelCommission}',
+        [LevelCommissionController::class, 'update']
+    )->name('admin.level-commission.statement.update');
 
         /* 
     |--------------------------------------------------------------------------
