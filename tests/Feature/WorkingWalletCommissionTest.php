@@ -1,0 +1,140 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Investment;
+use App\Models\LevelCommission;
+use App\Models\LevelCommissionTransaction;
+use App\Models\Member;
+use App\Models\User;
+use App\Services\LevelCommissionGenerationService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class WorkingWalletCommissionTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function member(string $id, ?string $sponsorId): Member
+    {
+        return Member::create([
+            'member_id' => $id,
+            'sponsor_id' => $sponsorId,
+            'sponsor_name' => 'Sponsor',
+            'member_name' => 'Member ' . $id,
+            'mobile_no' => '9' . substr(str_pad($id, 9, '0'), -9),
+            'pan_card_no' => 'ABCDE1234' . substr($id, -1),
+            'email' => strtolower($id) . '@example.com',
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_configured_rates_match_documented_levels(): void
+    {
+        $this->assertSame('1.0000', (string) LevelCommission::where('level', 1)->value('percentage'));
+        $this->assertSame('0.5000', (string) LevelCommission::where('level', 2)->value('percentage'));
+        $this->assertSame('0.5000', (string) LevelCommission::where('level', 3)->value('percentage'));
+        $this->assertSame('0.3000', (string) LevelCommission::where('level', 4)->value('percentage'));
+        $this->assertSame('0.2500', (string) LevelCommission::where('level', 20)->value('percentage'));
+        $this->assertSame('0.2000', (string) LevelCommission::where('level', 21)->value('percentage'));
+        $this->assertSame('0.2000', (string) LevelCommission::where('level', 32)->value('percentage'));
+    }
+
+    public function test_investment_credits_upline_working_wallet_by_genealogy_level(): void
+    {
+        // ST666666 root -> A -> B -> C (three-level real sponsor chain)
+        $memberA = $this->member('MB100001', 'ST666666');
+        $memberB = $this->member('MB100002', $memberA->member_id);
+        $memberC = $this->member('MB100003', $memberB->member_id);
+
+        $investment = Investment::create([
+            'investment_id' => 'INVWORK001',
+            'member_id' => $memberC->member_id,
+            'member_name' => $memberC->member_name,
+            'amount' => 1000,
+            'status' => 'active',
+        ]);
+
+        app(LevelCommissionGenerationService::class)->generateForInvestment($investment);
+
+        $memberA->refresh();
+        $memberB->refresh();
+
+        // Level 1 (direct sponsor B) = 1% of 1000 = 10.00
+        $this->assertSame('10.0000', (string) $memberB->working_wallet_amount);
+        // Level 2 (sponsor of B) = 0.5% of 1000 = 5.00
+        $this->assertSame('5.0000', (string) $memberA->working_wallet_amount);
+
+        $this->assertDatabaseHas('level_commission_transactions', [
+            'investment_id' => 'INVWORK001',
+            'member_id' => $memberB->member_id,
+            'level' => 1,
+            'income_amount' => 10.0000,
+        ]);
+        $this->assertDatabaseHas('level_commission_transactions', [
+            'investment_id' => 'INVWORK001',
+            'member_id' => $memberA->member_id,
+            'level' => 2,
+            'income_amount' => 5.0000,
+        ]);
+    }
+
+    public function test_duplicate_generation_does_not_double_credit_working_wallet(): void
+    {
+        $memberA = $this->member('MB200001', 'ST666666');
+        $memberB = $this->member('MB200002', $memberA->member_id);
+
+        $investment = Investment::create([
+            'investment_id' => 'INVWORK002',
+            'member_id' => $memberB->member_id,
+            'member_name' => $memberB->member_name,
+            'amount' => 500,
+            'status' => 'active',
+        ]);
+
+        $service = app(LevelCommissionGenerationService::class);
+        $service->generateForInvestment($investment);
+        $service->generateForInvestment($investment);
+
+        $memberA->refresh();
+
+        $this->assertSame('5.0000', (string) $memberA->working_wallet_amount);
+        $this->assertSame(1, LevelCommissionTransaction::where('investment_id', 'INVWORK002')->count());
+    }
+
+    public function test_missing_sponsor_stops_the_chain_without_error(): void
+    {
+        $member = $this->member('MB300001', 'ST666666');
+
+        $investment = Investment::create([
+            'investment_id' => 'INVWORK003',
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'amount' => 300,
+            'status' => 'active',
+        ]);
+
+        $result = app(LevelCommissionGenerationService::class)->generateForInvestment($investment);
+
+        $this->assertSame(0, $result['generated']);
+        $this->assertDatabaseCount('level_commission_transactions', 0);
+    }
+
+    public function test_investment_store_route_credits_sponsor_working_wallet(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $memberA = $this->member('MB400001', 'ST666666');
+        $memberB = $this->member('MB400002', $memberA->member_id);
+
+        $this->post(route('admin.investments.store'), [
+            'investment_id' => 'INVWORK004',
+            'member_id' => $memberB->member_id,
+            'amount' => 1000,
+        ])->assertRedirect(route('admin.investments.entry'));
+
+        $memberA->refresh();
+
+        $this->assertSame('10.0000', (string) $memberA->working_wallet_amount);
+    }
+}

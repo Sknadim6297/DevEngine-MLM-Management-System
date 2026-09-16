@@ -4,12 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Investment;
 use App\Models\Member;
+use App\Services\LevelCommissionGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class InvestmentController extends Controller
 {
+    public function __construct(
+        private readonly LevelCommissionGenerationService $levelCommissionGenerationService
+    ) {
+    }
+
     public function investmentEntry(Request $request)
     {
         $investmentId = trim((string) $request->old('investment_id', ''));
@@ -61,7 +67,7 @@ class InvestmentController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            Investment::create([
+            $investment = Investment::create([
                 'investment_id' => $validatedData['investment_id'],
                 'member_id' => $member->member_id,
                 'member_name' => $member->member_name,
@@ -72,6 +78,8 @@ class InvestmentController extends Controller
             if ($member->status !== 'active') {
                 $member->update(['status' => 'active']);
             }
+
+            $this->levelCommissionGenerationService->generateForInvestment($investment);
         });
 
         $request->session()->forget('generated_investment_id');
