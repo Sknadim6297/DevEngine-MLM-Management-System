@@ -191,5 +191,42 @@ class InvestmentController extends Controller
     {
         return rtrim(rtrim(number_format((float) $amount, 4, '.', ''), '0'), '.') ?: '0';
     }
+    public function closedInvestments(Request $request)
+    {
+        $query = Investment::where('status', 'closed')
+            ->where('amount', '>=', 100);
+
+        if ($request->filled('member_id')) {
+            $memberSearch = trim((string) $request->query('member_id'));
+            $query->where(function ($investmentQuery) use ($memberSearch) {
+                $investmentQuery->where('member_id', 'like', '%' . $memberSearch . '%')
+                    ->orWhere('member_name', 'like', '%' . $memberSearch . '%');
+            });
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('created_at', '>=', $request->query('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->query('to_date'));
+        }
+
+        $totalAmount = $query->sum('amount');
+
+        return view('admin.invesment.closed-investment-list', [
+            'investments' => $query->latest()->paginate(10)->withQueryString(),
+            'totalAmount' => $totalAmount,
+        ]);
+    }
+    public function investmentWithdrawalEntry()
+    {
+        return view('admin.invesment.investment-withdrawal-entry');
+    }
+
+    public function investmentWithdrawalList()
+    {
+        return view('admin.invesment.investment-withdrawal-list');
+    }
 
 }

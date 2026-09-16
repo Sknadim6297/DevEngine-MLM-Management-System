@@ -125,17 +125,17 @@
                 <span>Active Investment List</span>
             </a>
 
-            <a href="{{ asset('admin2/ExpList.html') }}">
+            <a href="{{ route('admin.investments.closed-investments') }}">
                 <i class="bi bi-cash-stack"></i>
                 <span>Closed Investment List</span>
             </a>
 
-            <a href="{{ asset('admin2/WithdrawEntry.html') }}">
+            <a href="{{ route('admin.investments.investment-withdrawal-entry') }}">
                 <i class="bi bi-arrow-repeat"></i>
                 <span>Investment Withdrawl Entry</span>
             </a>
 
-            <a href="{{ asset('admin2/WithdrawList.html') }}">
+            <a href="{{ route('admin.investments.investment-withdrawal-list') }}">
                 <i class="bi bi-clock-history"></i>
                 <span>Investment Withdrawl List</span>
             </a>

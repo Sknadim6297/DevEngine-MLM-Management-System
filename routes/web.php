@@ -175,14 +175,35 @@ Route::middleware('auth')->group(function () {
                 ->name('store');
 
             Route::get(
-                '/active-investments/export',
-                'exportActiveInvestments'
-            )->name('active-investments.export');
+                '/close-investments-list',
+                'closeInvestmentsList'
+            )->name('close-investments-list');
+            
+            Route::get(
+                '/investment-withdrawal-entry',
+                'investmentWithdrawalEntry'
+            )->name('investment-withdrawal-entry');
+          
+            Route::get(
+                '/investment-withdrawal-list',
+                'investmentWithdrawalList'
+            )->name('investment-withdrawal-list');
+
 
             Route::get(
                 '/active-investments',
                 'activeInvestments'
             )->name('active-investments');
+
+            Route::get(
+                '/closed-investments/export',
+                'exportClosedInvestments'
+            )->name('closed-investments.export');
+
+            Route::get(
+                '/closed-investments',
+                'closedInvestments'
+            )->name('closed-investments');
         });
 
 
