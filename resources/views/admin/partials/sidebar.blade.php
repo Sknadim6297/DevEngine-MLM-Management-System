@@ -88,17 +88,17 @@
                 <span>Transfer to Activation Wallet from admin list</span>
             </a>
 
-            <a href="{{ asset('admin2/Debit5.html') }}">
+            <a href="{{ route('admin.activation-wallet.debit-entry') }}">
                 <i class="bi bi-person-lines-fill"></i>
                 <span>Force Debit from activation wallet entry</span>
             </a>
 
-            <a href="{{ asset('admin2/DebitList5.html') }}">
+            <a href="{{ route('admin.activation-wallet.debit-entry.list') }}">
                 <i class="bi bi-list-ul"></i>
-                <span>Force Debit from activation wallet entry</span>
+                <span>Force Debit from activation wallet entry List</span>
             </a>
 
-            <a href="{{ asset('admin2/ActSummary.html') }}">
+            <a href="{{ route('admin.activation-wallet.summary') }}">
                 <i class="bi bi-clock-history"></i>
                 <span>Activation Wallet Summary</span>
             </a>
@@ -348,6 +348,11 @@
             </a>
 
         </div>
+
+        <a href="{{ route('admin.level-commission.statement') }}">
+            <i class="bi bi-percent"></i>
+            <span>Level Commission Statement</span>
+        </a>
 
         <a href="#notificationMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
             aria-controls="notificationMenu">

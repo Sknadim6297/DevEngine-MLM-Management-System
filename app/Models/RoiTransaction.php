@@ -6,25 +6,35 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Investment extends Model
+class RoiTransaction extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        'reference',
         'investment_id',
         'member_id',
         'member_name',
-        'category',
-        'amount',
-        'status',
+        'on_amount',
+        'rate_percentage',
+        'income_amount',
+        'roi_date',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:4',
+        'on_amount' => 'decimal:4',
+        'rate_percentage' => 'decimal:3',
+        'income_amount' => 'decimal:4',
+        'roi_date' => 'date',
     ];
 
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class, 'member_id', 'member_id');
+    }
+
+    public function investment(): BelongsTo
+    {
+        return $this->belongsTo(Investment::class, 'investment_id', 'investment_id');
     }
 }

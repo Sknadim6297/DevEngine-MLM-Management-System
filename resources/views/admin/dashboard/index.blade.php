@@ -146,7 +146,7 @@
                                     </span>
 
                                     <span class="stat-value">
-                                        $4,567.54
+                                        ${{ number_format((float) ($activationWalletTotal ?? 0), 2) }}
                                     </span>
 
                                 </div>
@@ -230,7 +230,7 @@
                                     </span>
 
                                     <span class="stat-value">
-                                        N/A
+                                        ${{ number_format((float) ($workingWalletTotal ?? 0), 2) }}
                                     </span>
 
                                 </div>

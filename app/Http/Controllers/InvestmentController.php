@@ -48,9 +48,12 @@ class InvestmentController extends Controller
                 Rule::unique('investments', 'investment_id'),
             ],
             'member_id' => ['required', 'string', 'exists:members,member_id'],
+            'category' => ['required', 'string', Rule::in(['Group A', 'Group B'])],
             'amount' => ['required', 'numeric', 'min:100'],
         ], [
             'member_id.exists' => 'The selected member id is invalid.',
+            'category.required' => 'Category is required.',
+            'category.in' => 'Category must be Group A or Group B.',
             'amount.min' => 'Investment Amount must be at least 100 USDT.',
         ]);
 
@@ -65,6 +68,7 @@ class InvestmentController extends Controller
                 'investment_id' => $validatedData['investment_id'],
                 'member_id' => $member->member_id,
                 'member_name' => $member->member_name,
+                'category' => $validatedData['category'],
                 'amount' => $validatedData['amount'],
                 'status' => 'active',
             ]);
@@ -151,7 +155,7 @@ class InvestmentController extends Controller
 
         return response()->streamDownload(function () use ($investments) {
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Serial No', 'Member ID', 'Name', 'Investment ID', 'Investment Amount (USDT)', 'Investment Date']);
+            fputcsv($output, ['Serial No', 'Member ID', 'Name', 'Investment ID', 'Category', 'Investment Amount (USDT)', 'Investment Date']);
 
             foreach ($investments as $index => $investment) {
                 fputcsv($output, [
@@ -159,6 +163,7 @@ class InvestmentController extends Controller
                     $investment->member_id,
                     $investment->member_name,
                     $investment->investment_id,
+                    $investment->category,
                     $this->formatUsdt($investment->amount),
                     $investment->created_at?->format('d-m-Y'),
                 ]);

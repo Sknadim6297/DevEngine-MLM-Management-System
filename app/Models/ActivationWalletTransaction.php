@@ -14,6 +14,8 @@ class ActivationWalletTransaction extends Model
         'member_id',
         'member_name',
         'amount',
+        'type',
+        'remarks',
         'reference',
         'created_at',
         'updated_at',

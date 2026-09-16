@@ -179,6 +179,7 @@
         const touchedFields = new Set();
         let sponsorValidationTimer = null;
         let fetchedMemberId = null;
+        let sponsorIdValid = false;
 
         function setError(fieldName, message = '') {
             let error = document.querySelector('[data-error-for="' + fieldName + '"]');
@@ -309,17 +310,20 @@
                 if (sponsorNameInput) {
                     sponsorNameInput.value = '';
                 }
+                sponsorIdValid = false;
                 return false;
             }
 
-            if (sponsorId === 'ST666666') {
+            if (sponsorId.toUpperCase() === 'ST666666') {
                 sponsorNameInput.value = 'Admin';
                 setError('sponsor_id');
+                sponsorIdValid = true;
                 return true;
             }
 
             const requestId = Date.now();
             sponsorValidationTimer = requestId;
+            sponsorIdValid = false;
             setError('sponsor_id');
 
             fetch('{{ route('admin.members.check-sponsor-id') }}?sponsor_id=' + encodeURIComponent(sponsorId), {
@@ -334,18 +338,21 @@
                     if (data.exists) {
                         sponsorNameInput.value = data.sponsor_name || '';
                         setError('sponsor_id');
+                        sponsorIdValid = true;
                     } else {
                         sponsorNameInput.value = '';
                         setError('sponsor_id', data.message || 'Invalid Sponsor ID.');
+                        sponsorIdValid = false;
                     }
                 })
                 .catch(() => {
                     if (sponsorValidationTimer === requestId) {
                         setError('sponsor_id', 'Invalid Sponsor ID.');
+                        sponsorIdValid = false;
                     }
                 });
 
-            return true;
+            return false;
         }
 
         function clearMemberFields() {
@@ -483,6 +490,7 @@
                     fields.pan_card_no.value = member.pan_card_no || '';
                     fields.password.value = '';
                     fetchedMemberId = member.member_id;
+                    sponsorIdValid = true;
                 })
                 .catch(function (error) {
                     fetchedMemberId = null;
@@ -505,7 +513,7 @@
             markTouched('pan_card_no');
 
             const isValid = validateMemberName(true)
-                && validateSponsorId(true)
+                && (validateSponsorId(true) && sponsorIdValid)
                 && validateEmail(true)
                 && validateMobileNo(true)
                 && validatePanCard(true)
@@ -513,6 +521,9 @@
 
             if (!isValid) {
                 event.preventDefault();
+                if (!sponsorIdValid) {
+                    setError('sponsor_id', 'Please enter a valid, existing Sponsor ID.');
+                }
             }
         });
     </script>

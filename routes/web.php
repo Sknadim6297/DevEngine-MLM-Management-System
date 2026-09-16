@@ -11,6 +11,7 @@ use App\Http\Controllers\ChangePasswordController;
 use App\Http\Controllers\genealogyController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\LevelCommissionController;
 
 
 Route::get('/', function () {
@@ -82,7 +83,10 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::get('/dashboard', function () {
-        return view('admin.dashboard.index');
+        return view('admin.dashboard.index', [
+            'activationWalletTotal' => (float) \App\Models\Member::sum('activation_wallet_amount'),
+            'workingWalletTotal' => (float) \App\Models\Member::sum('working_wallet_amount'),
+        ]);
     })->name('dashboard');
 
 
@@ -124,6 +128,11 @@ Route::middleware('auth')->group(function () {
             Route::get('/registration', 'registration')->name('registration');
 
             Route::get('/update', 'update')->name('update');
+
+            Route::get(
+                '/fetch-details',
+                'fetchMemberDetails'
+            )->name('fetch-details');
 
             Route::get(
                 '/check-member-id',
@@ -211,6 +220,31 @@ Route::middleware('auth')->group(function () {
                 '/credit-entry/list',
                 'listCreditEntries'
             )->name('credit-entry.list');
+
+            Route::get(
+                '/debit-entry',
+                'debitEntry'
+            )->name('debit-entry');
+
+            Route::post(
+                '/debit-entry',
+                'storeDebitEntry'
+            )->name('store-debit-entry');
+
+            Route::get(
+                '/debit-entry/list',
+                'listDebitEntries'
+            )->name('debit-entry.list');
+
+            Route::get(
+                '/summary/export',
+                'exportSummary'
+            )->name('summary.export');
+
+            Route::get(
+                '/summary',
+                'summary'
+            )->name('summary');
         });
 
 
@@ -256,6 +290,10 @@ Route::middleware('auth')->group(function () {
                 '/level-view',
                 'levelView'
             )->name('level-view');
+            Route::get(
+                '/level-view/members',
+                'levelMembers'
+            )->name('level-view.members');
         });
 
 
@@ -285,6 +323,12 @@ Route::middleware('auth')->group(function () {
                 'exportAppliedTickets'
             )->name('applied-tickets.export');
         });
+
+    Route::get(
+        '/admin/level-commission/statement',
+        [LevelCommissionController::class, 'statement']
+    )->name('admin.level-commission.statement');
+
         /* 
     |--------------------------------------------------------------------------
     | Report
@@ -301,9 +345,17 @@ Route::middleware('auth')->group(function () {
                 'roiReport'
             )->name('roi-report');
             Route::get(
+                '/roi-report/export',
+                'exportRoiReport'
+            )->name('roi-report.export');
+            Route::get(
                 '/level-income',
                 'levelIncomeReport'
-            )->name('level-income');    
+            )->name('level-income');
+            Route::get(
+                '/level-income/export',
+                'exportLevelIncomeReport'
+            )->name('level-income.export');
             Route::get(
                 '/salary-report',
                 'salaryReport'
@@ -312,6 +364,7 @@ Route::middleware('auth')->group(function () {
                 '/rank-achievement',
                 'rankAchievementReport'
             )->name('rank-achievement');
+            
         });
 
 });

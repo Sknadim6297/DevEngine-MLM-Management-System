@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class MemberController extends Controller
 {
@@ -22,7 +23,7 @@ class MemberController extends Controller
                     'mobile' => $member->mobile_no,
                     'pan_card_no' => $member->pan_card_no,
                     'investment_amount' => (float) ($member->investment_amount ?? 0),
-                    'password' => $member->password ?? '',
+                    'password' => $member->password ? 'Protected' : 'Not set',
                     'status' => $member->status,
                 ];
             })
@@ -87,29 +88,34 @@ class MemberController extends Controller
     {
         $requestedSponsorId = trim((string) $request->input('sponsor_id', ''));
 
-        if ($requestedSponsorId === 'ST666666') {
+        if ($requestedSponsorId === '') {
+            $sponsorId = $this->resolveSponsorId();
+
+            return [
+                'sponsor_id' => $sponsorId,
+                'sponsor_name' => $this->resolveSponsorName($sponsorId),
+            ];
+        }
+
+        if (strtoupper($requestedSponsorId) === 'ST666666') {
             return [
                 'sponsor_id' => 'ST666666',
                 'sponsor_name' => 'Admin',
             ];
         }
 
-        if ($requestedSponsorId !== '') {
-            $member = Member::where('member_id', $requestedSponsorId)->first();
+        $member = Member::where('member_id', $requestedSponsorId)->first();
 
-            if ($member) {
-                return [
-                    'sponsor_id' => $member->member_id,
-                    'sponsor_name' => $member->member_name,
-                ];
-            }
+        if (! $member) {
+            // Reject arbitrary/non-existing Sponsor IDs instead of silently defaulting to Admin.
+            throw ValidationException::withMessages([
+                'sponsor_id' => 'Invalid Sponsor ID. Enter an existing Member ID or leave it blank to use the default sponsor.',
+            ]);
         }
 
-        $sponsorId = $this->resolveSponsorId();
-
         return [
-            'sponsor_id' => $sponsorId,
-            'sponsor_name' => $this->resolveSponsorName($sponsorId),
+            'sponsor_id' => $member->member_id,
+            'sponsor_name' => $member->member_name,
         ];
     }
 
@@ -129,6 +135,7 @@ class MemberController extends Controller
             ->withSum(['investments as investment_amount' => function ($investmentQuery) {
                 $investmentQuery->where('status', 'active')->where('amount', '>=', 100);
             }], 'amount');
+
         $memberName = trim((string) $request->query('member_name', ''));
         $memberId = trim((string) $request->query('member_id', ''));
 
@@ -166,6 +173,7 @@ class MemberController extends Controller
             ->withSum(['investments as investment_amount' => function ($investmentQuery) {
                 $investmentQuery->where('status', 'active')->where('amount', '>=', 100);
             }], 'amount');
+
         $memberName = trim((string) $request->query('member_name', ''));
         $memberId = trim((string) $request->query('member_id', ''));
 
@@ -199,7 +207,7 @@ class MemberController extends Controller
                     $member->mobile_no,
                     $member->pan_card_no,
                     $this->formatUsdt($member->investment_amount ?? 0),
-                    $member->password,
+                    $member->password ? 'Protected' : 'Not set',
                 ]);
             }
 

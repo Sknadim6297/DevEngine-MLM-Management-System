@@ -15,6 +15,7 @@
 
 
         <!-- SEARCH AREA -->
+        <form method="GET" action="{{ route('admin.report.roi-report') }}" id="roiReportForm">
         <div class="row align-items-end">
 
             <!-- MEMBER ID -->
@@ -22,7 +23,8 @@
                 <label>Member ID</label>
 
                 <input type="text"
-                     
+                       name="member_id"
+                       value="{{ request('member_id') }}"
                        class="form-control"
                        placeholder="Enter Member ID">
             </div>
@@ -33,7 +35,8 @@
                 <label>From Date</label>
 
                 <input type="date"
-                      
+                       name="from_date"
+                       value="{{ request('from_date') }}"
                        class="form-control">
             </div>
 
@@ -43,7 +46,8 @@
                 <label>To Date</label>
 
                 <input type="date"
-                       
+                       name="to_date"
+                       value="{{ request('to_date') }}"
                        class="form-control">
             </div>
 
@@ -59,7 +63,7 @@
 
             <button type="button"
                     class="btn btn-primary"
-                    ">
+                    onclick="window.location.href='{{ route('admin.report.roi-report.export') }}?' + new URLSearchParams(new FormData(document.getElementById('roiReportForm'))).toString()">
 
                 <i class="bi bi-file-earmark-excel"></i>
                 Export to Excel
@@ -67,9 +71,8 @@
             </button>
 
 
-            <button type="button"
-                    class="btn btn-primary"
-                    onclick="searchInvestment()">
+            <button type="submit"
+                    class="btn btn-primary">
 
                 <i class="bi bi-search"></i>
                 Search
@@ -79,7 +82,7 @@
 
             <button type="button"
                     class="btn btn-primary"
-                   ">
+                    onclick="window.location.href='{{ route('admin.report.roi-report') }}'">
 
                 <i class="bi bi-arrow-counterclockwise"></i>
                 Reset
@@ -87,6 +90,7 @@
             </button>
 
         </div>
+        </form>
 
           <div class="col-md-2 mb-3">
 
@@ -94,7 +98,7 @@
 
                     <span>Total Amount (USDT)</span>
 
-                    <strong>160838.6922</strong>
+                    <strong>{{ rtrim(rtrim(number_format((float) $totalAmount, 4, '.', ''), '0'), '.') ?: '0' }}</strong>
 
                 </div>
 
@@ -124,35 +128,21 @@
 
                 <tbody>
 
-                    <tr>
-                        <td>1</td>
-                        <td>MB10001</td>
-                        <td>Rahul Das</td>
-                        <td>INV10001</td>
-                        <td>500.0000</td>
-                        <td>5000.0000</td>
-                        <td>20-Aug-2026</td>
-                    </tr>
-
-                    <tr>
-                        <td>2</td>
-                        <td>MB10002</td>
-                        <td>Sumit Ghosh</td>
-                        <td>INV10002</td>
-                        <td>350.5000</td>
-                        <td>3500.0000</td>
-                        <td>21-Aug-2026</td>
-                    </tr>
-
-                    <tr>
-                        <td>3</td>
-                        <td>MB10003</td>
-                        <td>Priya Das</td>
-                        <td>INV10003</td>
-                        <td>750.2500</td>
-                        <td>7500.0000</td>
-                        <td>22-Aug-2026</td>
-                    </tr>
+                    @forelse ($transactions as $transaction)
+                        <tr>
+                            <td>{{ $transactions->firstItem() + $loop->index }}</td>
+                            <td>{{ $transaction->member_id }}</td>
+                            <td>{{ $transaction->member_name }}</td>
+                            <td>{{ $transaction->investment_id }}</td>
+                            <td>{{ rtrim(rtrim(number_format((float) $transaction->income_amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
+                            <td>{{ rtrim(rtrim(number_format((float) $transaction->on_amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
+                            <td>{{ $transaction->created_at?->format('d-M-Y') }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="text-center">No ROI transactions found.</td>
+                        </tr>
+                    @endforelse
 
                 </tbody>
 
@@ -165,26 +155,12 @@
         <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
 
             <div class="table-info">
-                Showing 1 to 3 of 3 entries
+                Showing {{ $transactions->firstItem() ?? 0 }} to {{ $transactions->lastItem() ?? 0 }} of {{ $transactions->total() }} entries
             </div>
 
             <nav>
 
-                <ul class="pagination pagination-sm mb-0">
-
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Previous</a>
-                    </li>
-
-                    <li class="page-item active">
-                        <a class="page-link" href="#">1</a>
-                    </li>
-
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Next</a>
-                    </li>
-
-                </ul>
+                {{ $transactions->links('pagination::bootstrap-5') }}
 
             </nav>
 

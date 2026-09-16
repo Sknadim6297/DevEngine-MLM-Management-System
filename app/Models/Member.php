@@ -18,6 +18,7 @@ class Member extends Model
         'member_name',
         'wallet_address',
         'activation_wallet_amount',
+        'working_wallet_amount',
         'mobile_no',
         'pan_card_no',
         'email',

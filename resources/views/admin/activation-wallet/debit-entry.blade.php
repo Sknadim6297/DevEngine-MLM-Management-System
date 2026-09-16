@@ -8,11 +8,21 @@
 
     <div class="form-card">
 
+        @if ($errors->any())
+            <div class="alert alert-danger">{{ $errors->first() }}</div>
+        @endif
+
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+
         <!-- TITLE -->
         <div class="form-title">
             <h4>Force Debit from Activation Wallet</h4>
         </div>
 
+        <form method="POST" action="{{ route('admin.activation-wallet.store-debit-entry') }}" id="activationWalletDebitForm">
+            @csrf
         <div class="row">
 
             <!-- MEMBER ID -->
@@ -20,7 +30,9 @@
                 <label>Member ID</label>
 
                 <input type="text"
-                       
+                       id="memberId"
+                       name="member_id"
+                       data-error-for="member_id"
                        class="form-control"
                        placeholder="Enter Member ID">
             </div>
@@ -31,7 +43,8 @@
                 <label>Member Name</label>
 
                 <input type="text"
-                      
+                       id="memberName"
+                       name="member_name"
                        class="form-control"
                        placeholder="Enter Member Name">
             </div>
@@ -42,6 +55,8 @@
                 <label>Remarks</label>
 
                 <textarea 
+                          id="remarks"
+                          name="remarks"
                           class="form-control"
                           rows="3"
                           placeholder="Enter Remarks"></textarea>
@@ -53,7 +68,8 @@
                 <label>Activation Wallet Amount (USDT)</label>
 
                 <input type="text"
-                       
+                       id="walletAmount"
+                       name="wallet_amount"
                        class="form-control"
                        placeholder="Activation Wallet Amount"
                        readonly>
@@ -65,7 +81,9 @@
                 <label>Debit Amount (USDT)</label>
 
                 <input type="number"
-                       
+                       id="debitAmount"
+                       name="amount"
+                       data-error-for="amount"
                        class="form-control"
                        placeholder="Enter Debit Amount">
             </div>
@@ -77,6 +95,7 @@
         <div class="text-end mt-2">
 
             <button type="button"
+                    id="fetchMemberDetails"
                     class="btn btn-primary px-4"
                     >
 
@@ -85,7 +104,8 @@
 
             </button>
 
-            <button type="button"
+            <button type="reset"
+                    id="resetActivationWalletDebitForm"
                     class="btn btn-primary px-4 ms-2"
                     >
 
@@ -95,9 +115,210 @@
             </button>
 
         </div>
+        </form>
 
     </div>
 
 
 </main>
+@endsection
+
+@section('scripts')
+    <script>
+        const activationWalletDebitForm = document.getElementById('activationWalletDebitForm');
+        const memberIdInput = document.getElementById('memberId');
+        const memberNameInput = document.getElementById('memberName');
+        const walletAmountInput = document.getElementById('walletAmount');
+        const debitAmountInput = document.getElementById('debitAmount');
+        const fetchMemberDetailsButton = document.getElementById('fetchMemberDetails');
+        const resetButton = document.getElementById('resetActivationWalletDebitForm');
+        const actionButton = fetchMemberDetailsButton;
+        let fetchedMemberId = null;
+        let activationWalletBalance = null;
+        let memberLookupTimer = null;
+        let isSubmitting = false;
+
+        function setError(fieldName, message = '') {
+            const target = document.querySelector('[data-error-for="' + fieldName + '"]');
+            if (!target) {
+                return;
+            }
+
+            let error = target.parentElement.querySelector('.validation-message');
+            if (!error) {
+                error = document.createElement('div');
+                error.className = 'text-danger mt-1 small validation-message';
+                target.parentElement.appendChild(error);
+            }
+
+            error.textContent = message;
+            error.style.display = message ? 'block' : 'none';
+        }
+
+        function formatAmount(value) {
+            return (Number(value) || 0).toFixed(4).replace(/\.?0+$/, '') || '0';
+        }
+
+        function clearMemberDetails() {
+            fetchedMemberId = null;
+            activationWalletBalance = null;
+            memberNameInput.value = '';
+            walletAmountInput.value = '';
+            actionButton.type = 'button';
+            actionButton.disabled = false;
+            actionButton.innerHTML = '<i class="bi bi-dash-circle"></i> Submit';
+        }
+
+        function isIncompleteMemberId(value) {
+            return /^ST?\d{0,6}$/.test(value) && value.length < 8;
+        }
+
+        function validateMemberId(force = false) {
+            const value = memberIdInput.value.trim();
+
+            if (!value) {
+                setError('member_id', force ? 'Member ID is required.' : '');
+                return false;
+            }
+
+            if (!force && isIncompleteMemberId(value)) {
+                setError('member_id', '');
+                return false;
+            }
+
+            if (!/^ST\d{6}$/.test(value)) {
+                setError('member_id', 'The selected member id is invalid.');
+                return false;
+            }
+
+            setError('member_id', '');
+            return true;
+        }
+
+        function isCompleteAmount(value) {
+            return /^\d+(\.\d{1,4})?$/.test(value) && Number(value) > 0;
+        }
+
+        function validateDebitAmount(force = false) {
+            const value = debitAmountInput.value.trim();
+
+            if (!value) {
+                setError('amount', force ? 'Debit amount is required.' : '');
+                return false;
+            }
+
+            if (!force && /^\d+\.?$/.test(value)) {
+                setError('amount', '');
+                return false;
+            }
+
+            if (!/^\d+(\.\d{1,4})?$/.test(value) || Number(value) <= 0) {
+                setError('amount', 'Enter a valid debit amount greater than 0.');
+                return false;
+            }
+
+            if (activationWalletBalance !== null && Number(value) > Number(activationWalletBalance)) {
+                setError('amount', 'Insufficient Activation Wallet balance.');
+                return false;
+            }
+
+            setError('amount', '');
+            return isCompleteAmount(value);
+        }
+
+        function lookupMember() {
+            const value = memberIdInput.value.trim();
+            if (!value || !/^ST\d{6}$/.test(value)) {
+                return;
+            }
+
+            clearTimeout(memberLookupTimer);
+            memberLookupTimer = setTimeout(function () {
+                fetch('{{ route('admin.activation-wallet.credit-entry.member-lookup') }}?member_id=' + encodeURIComponent(value), {
+                    headers: { 'Accept': 'application/json' }
+                }).then(function (response) {
+                    return response.json().then(function (data) {
+                        if (!response.ok) {
+                            throw new Error(data.message || 'The selected member id is invalid.');
+                        }
+                        return data;
+                    });
+                }).then(function (member) {
+                    memberNameInput.value = member.member_name;
+                    walletAmountInput.value = formatAmount(member.activation_wallet_amount);
+                    fetchedMemberId = member.member_id;
+                    activationWalletBalance = member.activation_wallet_amount;
+                    actionButton.type = 'submit';
+                    actionButton.innerHTML = '<i class="bi bi-dash-circle"></i> Submit';
+                    setError('member_id', '');
+                    validateDebitAmount();
+                }).catch(function (error) {
+                    clearMemberDetails();
+                    setError('member_id', error.message || 'The selected member id is invalid.');
+                });
+            }, 250);
+        }
+
+        memberIdInput.addEventListener('input', function () {
+            clearMemberDetails();
+            validateMemberId();
+            lookupMember();
+        });
+
+        memberIdInput.addEventListener('blur', function () {
+            validateMemberId(true);
+        });
+
+        debitAmountInput.addEventListener('input', function () {
+            validateDebitAmount();
+        });
+
+        debitAmountInput.addEventListener('blur', function () {
+            validateDebitAmount(true);
+        });
+
+        fetchMemberDetailsButton.addEventListener('click', function (event) {
+            if (fetchedMemberId && fetchedMemberId === memberIdInput.value.trim()) {
+                return;
+            }
+
+            event.preventDefault();
+            clearMemberDetails();
+            if (!validateMemberId(true)) {
+                return;
+            }
+
+            lookupMember();
+        });
+
+        resetButton.addEventListener('click', function () {
+            activationWalletDebitForm.reset();
+            clearMemberDetails();
+            setError('member_id', '');
+            setError('amount', '');
+        });
+
+        activationWalletDebitForm.addEventListener('submit', function (event) {
+            if (isSubmitting) {
+                event.preventDefault();
+                return;
+            }
+
+            if (!fetchedMemberId || fetchedMemberId !== memberIdInput.value.trim() || !validateDebitAmount(true)) {
+                event.preventDefault();
+                if (!fetchedMemberId) {
+                    validateMemberId(true);
+                }
+                return;
+            }
+
+            if (!validateMemberId(true)) {
+                event.preventDefault();
+                return;
+            }
+
+            isSubmitting = true;
+            actionButton.disabled = true;
+        });
+    </script>
 @endsection

@@ -111,7 +111,8 @@
                 <th>Member ID</th>
                 <th>Name</th>
                 <th>Investment Id</th>
-                <th>Investment Amount (USDT)</th>
+                <th>Category</th>
+                <th>Amount (USDT)</th>
                 <th>Investment Date</th>
             </tr>
         </thead>
@@ -123,12 +124,13 @@
                     <td>{{ $investment->member_id }}</td>
                     <td>{{ $investment->member_name }}</td>
                     <td>{{ $investment->investment_id }}</td>
+                    <td>{{ $investment->category }}</td>
                     <td>{{ rtrim(rtrim(number_format((float) $investment->amount, 4, '.', ''), '0'), '.') ?: '0' }} USDT</td>
                     <td>{{ $investment->created_at?->format('d-m-Y') }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="text-center">No active investments found.</td>
+                    <td colspan="7" class="text-center">No active investments found.</td>
                 </tr>
             @endforelse
         </tbody>

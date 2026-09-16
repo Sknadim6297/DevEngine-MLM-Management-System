@@ -39,6 +39,65 @@ class genealogyController extends Controller
         return view('admin.genealogy.level-view');
     }
 
+    public function levelMembers(Request $request)
+    {
+        $memberId = trim((string) $request->query('member_id', ''));
+        $levelFilter = trim((string) $request->query('level', ''));
+
+        if ($memberId === '') {
+            return response()->json(['message' => 'Member ID is required.'], 422);
+        }
+
+        $root = Member::where('member_id', $memberId)->first();
+
+        if (! $root) {
+            return response()->json(['message' => 'The selected member id is invalid.'], 404);
+        }
+
+        if ($levelFilter !== '' && (! ctype_digit($levelFilter) || (int) $levelFilter < 1 || (int) $levelFilter > 32)) {
+            return response()->json(['message' => 'Level must be a number between 1 and 32.'], 422);
+        }
+
+        $results = [];
+        $visited = [$root->member_id => true];
+        $currentLevelMembers = [$root];
+        $level = 1;
+
+        while (! empty($currentLevelMembers) && $level <= 32) {
+            $nextLevelMembers = [];
+
+            foreach ($currentLevelMembers as $parent) {
+                $children = Member::where('sponsor_id', $parent->member_id)
+                    ->orderBy('member_name')
+                    ->get();
+
+                foreach ($children as $child) {
+                    if (isset($visited[$child->member_id])) {
+                        continue;
+                    }
+
+                    $visited[$child->member_id] = true;
+                    $nextLevelMembers[] = $child;
+
+                    if ($levelFilter === '' || (int) $levelFilter === $level) {
+                        $results[] = [
+                            'level' => $level,
+                            'member_id' => $child->member_id,
+                            'member_name' => $child->member_name,
+                            'sponsor_id' => $child->sponsor_id,
+                            'status' => $child->status,
+                        ];
+                    }
+                }
+            }
+
+            $currentLevelMembers = $nextLevelMembers;
+            $level++;
+        }
+
+        return response()->json(['data' => $results]);
+    }
+
     protected function buildRootTree(): array
     {
         $memberIds = Member::query()->pluck('member_id')->all();

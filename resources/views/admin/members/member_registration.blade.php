@@ -90,6 +90,7 @@
         const registrationForm = document.querySelector('form');
         let sponsorValidationTimer = null;
         const touchedFields = new Set();
+        let sponsorIdValid = (sponsorIdInput?.value || '').trim().toUpperCase() === 'ST666666';
 
         function setError(fieldName, message = '') {
             const target = document.querySelector('[data-error-for="' + fieldName + '"]');
@@ -215,20 +216,23 @@
                 if (sponsorNameInput) {
                     sponsorNameInput.value = '';
                 }
+                sponsorIdValid = false;
                 return false;
             }
 
-            if (sponsorId === 'ST666666') {
+            if (sponsorId.toUpperCase() === 'ST666666') {
                 if (sponsorNameInput) {
                     sponsorNameInput.value = 'Admin';
                 }
                 setError('sponsor_id', '');
+                sponsorIdValid = true;
                 return true;
             }
 
             const currentRequest = Date.now();
             const requestId = currentRequest;
             sponsorValidationTimer = requestId;
+            sponsorIdValid = false;
 
             setError('sponsor_id', '');
 
@@ -244,20 +248,23 @@
                             sponsorNameInput.value = data.sponsor_name || '';
                         }
                         setError('sponsor_id', '');
+                        sponsorIdValid = true;
                     } else {
                         if (sponsorNameInput) {
                             sponsorNameInput.value = '';
                         }
                         setError('sponsor_id', data.message || 'Invalid Sponsor ID.');
+                        sponsorIdValid = false;
                     }
                 })
                 .catch(() => {
                     if (sponsorValidationTimer === requestId) {
                         setError('sponsor_id', 'Invalid Sponsor ID.');
+                        sponsorIdValid = false;
                     }
                 });
 
-            return true;
+            return false;
         }
 
         function markAllFieldsTouched() {
@@ -270,7 +277,7 @@
 
         function validateAllFields() {
             const memberNameOk = validateMemberName(true);
-            const sponsorIdOk = validateSponsorId(true);
+            const sponsorIdOk = validateSponsorId(true) && sponsorIdValid;
             const emailOk = validateEmail(true);
             const mobileNoOk = validateMobileNo(true);
             const panCardOk = validatePanCard(true);
@@ -344,6 +351,9 @@
 
             if (!isValid) {
                 event.preventDefault();
+                if (!sponsorIdValid) {
+                    setError('sponsor_id', 'Please enter a valid, existing Sponsor ID.');
+                }
             }
         });
     </script>

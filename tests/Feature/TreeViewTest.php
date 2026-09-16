@@ -115,4 +115,30 @@ class TreeViewTest extends TestCase
             ->assertSee('Member not found.')
             ->assertDontSee('ST100001');
     }
+
+    public function test_level_view_uses_sponsor_relationships_to_find_descendants(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $this->seedMembers();
+
+        $response = $this->getJson(route('admin.genealogy.level-view.members', [
+            'member_id' => 'ST100001',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.level', 1)
+            ->assertJsonPath('data.0.member_id', 'ST100002')
+            ->assertJsonPath('data.1.level', 1)
+            ->assertJsonPath('data.1.member_id', 'ST100003')
+            ->assertJsonPath('data.2.level', 2)
+            ->assertJsonPath('data.2.member_id', 'ST100004');
+
+        $this->getJson(route('admin.genealogy.level-view.members', [
+            'member_id' => 'ST100001',
+            'level' => 2,
+        ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.member_id', 'ST100004');
+    }
 }
