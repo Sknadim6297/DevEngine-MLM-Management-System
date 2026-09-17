@@ -7,6 +7,7 @@ use App\Models\LevelCommission;
 use App\Models\LevelCommissionTransaction;
 use App\Models\Member;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use App\Services\LevelCommissionGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -136,5 +137,44 @@ class WorkingWalletCommissionTest extends TestCase
         $memberA->refresh();
 
         $this->assertSame('10.0000', (string) $memberA->working_wallet_amount);
+    }
+
+    public function test_daily_generation_uses_business_date_and_report_shows_each_period(): void
+    {
+        $memberA = $this->member('MB500001', 'ST666666');
+        $memberB = $this->member('MB500002', $memberA->member_id);
+        $memberC = $this->member('MB500003', $memberB->member_id);
+
+        Investment::create([
+            'investment_id' => 'INVWORK005',
+            'member_id' => $memberC->member_id,
+            'member_name' => $memberC->member_name,
+            'amount' => '1000.0000',
+            'status' => 'active',
+        ]);
+
+        $service = app(LevelCommissionGenerationService::class);
+        $firstDate = CarbonImmutable::parse('2026-09-17', 'Asia/Kolkata');
+        $secondDate = CarbonImmutable::parse('2026-09-18', 'Asia/Kolkata');
+
+        $service->generateForInvestment(Investment::where('investment_id', 'INVWORK005')->firstOrFail(), $firstDate);
+        $service->generateForInvestment(Investment::where('investment_id', 'INVWORK005')->firstOrFail(), $firstDate);
+        $service->generateForInvestment(Investment::where('investment_id', 'INVWORK005')->firstOrFail(), $secondDate);
+
+        $this->assertSame(4, LevelCommissionTransaction::where('investment_id', 'INVWORK005')->count());
+        $this->assertSame('20.0000', (string) $memberB->fresh()->working_wallet_amount);
+        $this->assertSame('10.0000', (string) $memberA->fresh()->working_wallet_amount);
+        $nextDayCommission = LevelCommissionTransaction::where('investment_id', 'INVWORK005')
+            ->where('member_id', $memberB->member_id)
+            ->where('level', 1)
+            ->whereDate('business_date', '2026-09-18')
+            ->firstOrFail();
+        $this->assertSame('1000.0000', (string) $nextDayCommission->on_amount);
+        $this->assertSame('10.0000', (string) $nextDayCommission->income_amount);
+
+        $this->actingAs(User::factory()->create());
+        $this->get(route('admin.report.level-income', ['member_id' => $memberB->member_id]))
+            ->assertOk()
+            ->assertSeeText('10');
     }
 }

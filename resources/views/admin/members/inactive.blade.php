@@ -77,10 +77,6 @@
             </div>
 
             <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
-                <div class="table-info">
-                    Showing {{ $members->firstItem() ?? 0 }} to {{ $members->lastItem() ?? 0 }} of {{ $members->total() }} inactive members
-                </div>
-
                 <nav>
                     {{ $members->links('pagination::bootstrap-5') }}
                 </nav>

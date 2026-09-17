@@ -18,6 +18,7 @@ class LevelCommissionTransaction extends Model
         'from_member_id',
         'from_member_name',
         'level',
+        'business_date',
         'on_amount',
         'rate_percentage',
         'income_amount',
@@ -25,6 +26,7 @@ class LevelCommissionTransaction extends Model
 
     protected $casts = [
         'level' => 'integer',
+        'business_date' => 'date',
         'on_amount' => 'decimal:4',
         'rate_percentage' => 'decimal:3',
         'income_amount' => 'decimal:4',

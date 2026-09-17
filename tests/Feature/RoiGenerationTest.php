@@ -245,18 +245,24 @@ class RoiGenerationTest extends TestCase
 
         $this->actingAs(User::factory()->create());
 
-        $this->get(route('admin.report.roi-report', [
-            'member_id' => $member->member_id,
-            'page' => 2,
-        ]))
-            ->assertOk()
-            ->assertSee('<strong>11</strong>', false);
+        foreach ([1, 2] as $page) {
+            $roiResponse = $this->get(route('admin.report.roi-report', [
+                'member_id' => $member->member_id,
+                'page' => $page,
+            ]));
 
-        $this->get(route('admin.report.level-income', [
-            'member_id' => $member->member_id,
-            'page' => 2,
-        ]))
-            ->assertOk()
-            ->assertSee('<strong>22</strong>', false);
+            $roiResponse->assertOk()
+                ->assertSee('<strong>11</strong>', false);
+            $this->assertSame(1, substr_count($roiResponse->getContent(), 'Showing'));
+
+            $levelResponse = $this->get(route('admin.report.level-income', [
+                'member_id' => $member->member_id,
+                'page' => $page,
+            ]));
+
+            $levelResponse->assertOk()
+                ->assertSee('<strong>22</strong>', false);
+            $this->assertSame(1, substr_count($levelResponse->getContent(), 'Showing'));
+        }
     }
 }

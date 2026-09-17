@@ -19,3 +19,15 @@ if (app()->environment(['local', 'testing'])) {
 } else {
     $roiSchedule->dailyAt('00:00');
 }
+
+$levelCommissionSchedule = Schedule::command(
+    app()->environment(['local', 'testing'])
+        ? 'commission:generate-level --testing-period'
+        : 'commission:generate-level'
+)->timezone('Asia/Kolkata')->withoutOverlapping();
+
+if (app()->environment(['local', 'testing'])) {
+    $levelCommissionSchedule->everyTwoMinutes();
+} else {
+    $levelCommissionSchedule->dailyAt('00:00');
+}

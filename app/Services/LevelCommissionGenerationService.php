@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Investment;
 use App\Models\LevelCommissionTransaction;
 use App\Models\Member;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 
 /**
@@ -23,8 +24,9 @@ class LevelCommissionGenerationService
 
     private const MAX_LEVEL = 32;
 
-    public function generateForInvestment(Investment $investment): array
+    public function generateForInvestment(Investment $investment, ?CarbonImmutable $businessDate = null): array
     {
+        $businessDate ??= CarbonImmutable::now('Asia/Kolkata')->startOfDay();
         $result = ['generated' => 0, 'skipped' => 0];
 
         $sourceMember = Member::query()->where('member_id', $investment->member_id)->first();
@@ -52,7 +54,7 @@ class LevelCommissionGenerationService
 
             $visited[$beneficiary->member_id] = true;
 
-            $outcome = $this->creditLevelCommission($investment, $beneficiary, $level);
+            $outcome = $this->creditLevelCommission($investment, $beneficiary, $level, $businessDate);
             $result[$outcome]++;
 
             $currentSponsorId = $beneficiary->sponsor_id;
@@ -61,11 +63,12 @@ class LevelCommissionGenerationService
         return $result;
     }
 
-    private function creditLevelCommission(Investment $investment, Member $beneficiary, int $level): string
+    private function creditLevelCommission(Investment $investment, Member $beneficiary, int $level, CarbonImmutable $businessDate): string
     {
         if (LevelCommissionTransaction::query()
             ->where('investment_id', $investment->investment_id)
             ->where('member_id', $beneficiary->member_id)
+            ->whereDate('business_date', $businessDate->toDateString())
             ->exists()) {
             return 'skipped';
         }
@@ -85,13 +88,14 @@ class LevelCommissionGenerationService
 
         try {
             LevelCommissionTransaction::create([
-                'reference' => 'LC-' . $investment->investment_id . '-' . $beneficiary->member_id,
+                'reference' => 'LC-' . $investment->investment_id . '-' . $beneficiary->member_id . '-' . $businessDate->format('Ymd'),
                 'investment_id' => $investment->investment_id,
                 'member_id' => $beneficiary->member_id,
                 'member_name' => $beneficiary->member_name,
                 'from_member_id' => $investment->member_id,
                 'from_member_name' => $investment->member_name,
                 'level' => $level,
+                'business_date' => $businessDate->toDateString(),
                 'on_amount' => $onAmount,
                 'rate_percentage' => $rate,
                 'income_amount' => $incomeAmount,

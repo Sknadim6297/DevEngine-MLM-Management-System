@@ -96,8 +96,8 @@ class RoiGenerationService
 
                 // 5% monthly ROI divided by a fixed 30-day divisor.
                 $dailyIncome = bcdiv(
-                    bcmul((string) $investment->amount, self::MONTHLY_RATE_PERCENT, 8),
-                    '3000',
+                    bcmul((string) $investment->amount, '0.05', 8),
+                    '30',
                     self::MONEY_SCALE
                 );
                 $incomeAmount = bccomp($dailyIncome, $remainingCap, self::MONEY_SCALE) > 0

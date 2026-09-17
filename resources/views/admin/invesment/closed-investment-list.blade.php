@@ -140,10 +140,6 @@
         <!-- PAGINATION -->
         <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
 
-            <div class="table-info">
-                Showing {{ $investments->firstItem() ?? 0 }} to {{ $investments->lastItem() ?? 0 }} of {{ $investments->total() }} entries
-            </div>
-
             <nav>
 
                 {{ $investments->links('pagination::bootstrap-5') }}
