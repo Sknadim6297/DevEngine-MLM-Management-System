@@ -4,53 +4,124 @@ namespace Database\Seeders;
 
 use App\Models\Investment;
 use App\Models\Member;
+use App\Services\LevelCommissionGenerationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class RoiDevelopmentSeeder extends Seeder
 {
-    public function run(): void
+    public function run(LevelCommissionGenerationService $levelCommissionGenerationService): void
     {
         if (! app()->environment(['local', 'testing'])) {
             throw new RuntimeException('RoiDevelopmentSeeder can only run in local or testing environments.');
         }
 
-        $members = [
-            ['member_id' => 'DEVROI001', 'sponsor_id' => 'ST666666', 'sponsor_name' => 'Admin', 'member_name' => 'Rahul', 'mobile_no' => '9100000001', 'pan_card_no' => 'DEVROI001A', 'email' => 'dev-roi-rahul@example.test'],
-            ['member_id' => 'DEVROI002', 'sponsor_id' => 'DEVROI001', 'sponsor_name' => 'Rahul', 'member_name' => 'Suman', 'mobile_no' => '9100000002', 'pan_card_no' => 'DEVROI002A', 'email' => 'dev-roi-suman@example.test'],
-            ['member_id' => 'DEVROI003', 'sponsor_id' => 'DEVROI002', 'sponsor_name' => 'Suman', 'member_name' => 'Arif', 'mobile_no' => '9100000003', 'pan_card_no' => 'DEVROI003A', 'email' => 'dev-roi-arif@example.test'],
-        ];
+        $members = [];
+        $previousMember = null;
+        $memberNames = array_map(
+            static fn (string $letter): string => 'Roi Test Member ' . $letter,
+            range('A', 'Z')
+        );
+        $memberNames[] = 'Roi Test Member AA';
+        $memberNames[] = 'Roi Test Member AB';
+        $memberNames[] = 'Roi Test Member AC';
+        $memberNames[] = 'Roi Test Member AD';
+        $memberNames[] = 'Roi Test Member AE';
+        $memberNames[] = 'Roi Test Member AF';
 
-        foreach ($members as $attributes) {
-            Member::firstOrCreate(
-                ['member_id' => $attributes['member_id']],
-                $attributes + ['status' => 'active']
-            );
+        DB::transaction(function () use (&$members, &$previousMember, $memberNames) {
+            foreach (range(1, 32) as $level) {
+                $email = sprintf('roi-dev-level-%02d@example.test', $level);
+                $member = Member::where('email', $email)->first();
+
+                if (! $member) {
+                    $member = new Member([
+                        'member_id' => $this->generateMemberId(),
+                        'email' => $email,
+                    ]);
+                }
+
+                $member->fill([
+                    'sponsor_id' => $previousMember?->member_id ?? 'ST666666',
+                    'sponsor_name' => $previousMember?->member_name ?? 'Admin',
+                    'member_name' => $memberNames[$level - 1],
+                    'mobile_no' => (string) (9100000000 + $level),
+                    'pan_card_no' => sprintf('DEVROI%03dA', $level),
+                    'status' => 'inactive',
+                ]);
+                $member->save();
+
+                $members[$level] = $member->fresh();
+                $previousMember = $members[$level];
+            }
+        });
+
+        foreach ($members as $level => $member) {
+            DB::transaction(function () use ($member, $level, $levelCommissionGenerationService) {
+                $investment = Investment::where('member_id', $member->member_id)->first();
+
+                if (! $investment) {
+                    $investment = Investment::create([
+                        'investment_id' => $this->generateInvestmentId(),
+                        'member_id' => $member->member_id,
+                        'member_name' => $member->member_name,
+                        'amount' => '100.0000',
+                        'status' => 'active',
+                    ]);
+
+                    $investmentDate = CarbonImmutable::now('Asia/Kolkata')
+                        ->subDays(2)
+                        ->setTimezone('UTC');
+                    $investment->forceFill([
+                        'created_at' => $investmentDate,
+                        'updated_at' => $investmentDate,
+                    ])->save();
+                } else {
+                    $investment->update([
+                        'member_name' => $member->member_name,
+                        'amount' => '100.0000',
+                        'status' => 'active',
+                        'closed_at' => null,
+                    ]);
+                }
+
+                $member->update(['status' => 'active']);
+                $levelCommissionGenerationService->generateForInvestment($investment->fresh());
+            });
+
+            $this->command?->info(sprintf(
+                'Level %02d: %s -> %s -> %s',
+                $level,
+                $member->member_id,
+                $member->sponsor_id,
+                $member->member_name
+            ));
         }
 
-        $investments = [
-            ['investment_id' => 'DEVINV001', 'member_id' => 'DEVROI001', 'amount' => '100.0000'],
-            ['investment_id' => 'DEVINV002', 'member_id' => 'DEVROI002', 'amount' => '2405.0000'],
-            ['investment_id' => 'DEVINV003', 'member_id' => 'DEVROI003', 'amount' => '500.0000'],
-        ];
+        $this->command?->info('Created or verified 32 ROI development members and investments.');
+    }
 
-        foreach ($investments as $attributes) {
-            $member = Member::where('member_id', $attributes['member_id'])->firstOrFail();
-            $investment = Investment::firstOrCreate(
-                ['investment_id' => $attributes['investment_id']],
-                $attributes + [
-                    'member_name' => $member->member_name,
-                    'status' => 'active',
-                ]
-            );
+    protected function generateMemberId(): string
+    {
+        for ($counter = 100000; $counter <= 999999; $counter++) {
+            $candidate = 'ST' . $counter;
 
-            if ($investment->wasRecentlyCreated) {
-                $investment->forceFill([
-                    'created_at' => CarbonImmutable::now('Asia/Kolkata')->subDays(2)->setTimezone('UTC'),
-                    'updated_at' => CarbonImmutable::now('Asia/Kolkata')->subDays(2)->setTimezone('UTC'),
-                ])->save();
+            if (! Member::where('member_id', $candidate)->exists()) {
+                return $candidate;
             }
         }
+
+        throw new RuntimeException('No available Member ID found.');
+    }
+
+    protected function generateInvestmentId(): string
+    {
+        do {
+            $investmentId = 'INV' . random_int(100000, 999999);
+        } while (Investment::where('investment_id', $investmentId)->exists());
+
+        return $investmentId;
     }
 }
