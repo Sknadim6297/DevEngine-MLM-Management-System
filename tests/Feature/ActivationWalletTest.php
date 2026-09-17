@@ -246,7 +246,7 @@ class ActivationWalletTest extends TestCase
         $this->get(route('dashboard'))
             ->assertOk()
             ->assertSee('$250.00')
-            ->assertSee('$950.00');
+            ->assertSee('950.00 USDT');
     }
 
     public function test_guest_cannot_perform_activation_wallet_operations(): void

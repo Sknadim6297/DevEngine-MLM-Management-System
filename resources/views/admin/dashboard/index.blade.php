@@ -230,7 +230,7 @@
                                     </span>
 
                                     <span class="stat-value">
-                                        ${{ number_format((float) ($workingWalletTotal ?? 0), 2) }}
+                                        {{ number_format((float) ($workingWalletTotal ?? 0), 2) }} USDT
                                     </span>
 
                                 </div>
@@ -251,7 +251,7 @@
                                     </span>
 
                                     <span class="stat-value">
-                                        ${{ number_format((float) ($roiWalletTotal ?? 0), 2) }}
+                                        {{ number_format((float) ($roiWalletTotal ?? 0), 2) }} USDT
                                     </span>
 
                                 </div>
