@@ -175,14 +175,24 @@ Route::middleware('auth')->group(function () {
                 ->name('store');
 
             Route::get(
-                '/close-investments-list',
-                'closeInvestmentsList'
-            )->name('close-investments-list');
-            
-            Route::get(
                 '/investment-withdrawal-entry',
                 'investmentWithdrawalEntry'
             )->name('investment-withdrawal-entry');
+
+            Route::get(
+                '/investment-withdrawal-lookup',
+                'investmentWithdrawalLookup'
+            )->name('investment-withdrawal-lookup');
+
+            Route::get(
+                '/investment-withdrawal-investment-lookup',
+                'investmentWithdrawalInvestmentLookup'
+            )->name('investment-withdrawal-investment-lookup');
+
+            Route::post(
+                '/investment-withdrawal-entry',
+                'storeInvestmentWithdrawal'
+            )->name('investment-withdrawal-store');
           
             Route::get(
                 '/investment-withdrawal-list',
@@ -194,6 +204,11 @@ Route::middleware('auth')->group(function () {
                 '/active-investments',
                 'activeInvestments'
             )->name('active-investments');
+
+            Route::get(
+                '/active-investments/export',
+                'exportActiveInvestments'
+            )->name('active-investments.export');
 
             Route::get(
                 '/closed-investments/export',

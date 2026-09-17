@@ -17,10 +17,12 @@ class Investment extends Model
         'member_name',
         'amount',
         'status',
+        'closed_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:4',
+        'closed_at' => 'datetime',
     ];
 
     public function member(): BelongsTo
@@ -31,5 +33,10 @@ class Investment extends Model
     public function roiTransactions(): HasMany
     {
         return $this->hasMany(RoiTransaction::class, 'investment_id', 'investment_id');
+    }
+
+    public function withdrawals(): HasMany
+    {
+        return $this->hasMany(InvestmentWithdrawal::class, 'investment_id', 'investment_id');
     }
 }

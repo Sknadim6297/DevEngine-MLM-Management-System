@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Investment;
+use App\Models\InvestmentWithdrawal;
 use App\Models\Member;
 use App\Services\LevelCommissionGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class InvestmentController extends Controller
 {
@@ -193,40 +195,209 @@ class InvestmentController extends Controller
     }
     public function closedInvestments(Request $request)
     {
-        $query = Investment::where('status', 'closed')
-            ->where('amount', '>=', 100);
+        $query = $this->closedInvestmentQuery($request);
 
-        if ($request->filled('member_id')) {
-            $memberSearch = trim((string) $request->query('member_id'));
-            $query->where(function ($investmentQuery) use ($memberSearch) {
-                $investmentQuery->where('member_id', 'like', '%' . $memberSearch . '%')
-                    ->orWhere('member_name', 'like', '%' . $memberSearch . '%');
-            });
-        }
-
-        if ($request->filled('from_date')) {
-            $query->whereDate('created_at', '>=', $request->query('from_date'));
-        }
-
-        if ($request->filled('to_date')) {
-            $query->whereDate('created_at', '<=', $request->query('to_date'));
-        }
-
-        $totalAmount = $query->sum('amount');
+        $totalAmount = (clone $query)->sum('amount');
 
         return view('admin.invesment.closed-investment-list', [
             'investments' => $query->latest()->paginate(10)->withQueryString(),
             'totalAmount' => $totalAmount,
         ]);
     }
+
+    public function exportClosedInvestments(Request $request)
+    {
+        $investments = $this->closedInvestmentQuery($request)->latest('closed_at')->get();
+
+        return response()->streamDownload(function () use ($investments) {
+            $output = fopen('php://output', 'w');
+            fputcsv($output, ['Serial No', 'Member ID', 'Name', 'Investment ID', 'Investment Amount (USDT)', 'Investment Date', 'Close Date']);
+
+            foreach ($investments as $index => $investment) {
+                fputcsv($output, [
+                    $index + 1,
+                    $investment->member_id,
+                    $investment->member_name,
+                    $investment->investment_id,
+                    $this->formatUsdt($investment->amount),
+                    $investment->created_at?->format('d-m-Y'),
+                    $investment->closed_at?->format('d-m-Y'),
+                ]);
+            }
+
+            fclose($output);
+        }, 'closed-investments-' . now()->format('Y-m-d') . '.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    protected function closedInvestmentQuery(Request $request)
+    {
+        $query = Investment::query()
+            ->where('status', 'expired')
+            ->where('amount', '>=', 100);
+
+        if ($request->filled('member_id')) {
+            $search = trim((string) $request->query('member_id'));
+            $query->where(function ($investmentQuery) use ($search) {
+                $investmentQuery->where('member_id', 'like', '%' . $search . '%')
+                    ->orWhere('member_name', 'like', '%' . $search . '%')
+                    ->orWhere('investment_id', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('closed_at', '>=', $request->query('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('closed_at', '<=', $request->query('to_date'));
+        }
+
+        return $query;
+    }
     public function investmentWithdrawalEntry()
     {
         return view('admin.invesment.investment-withdrawal-entry');
     }
 
-    public function investmentWithdrawalList()
+    public function investmentWithdrawalLookup(Request $request)
     {
-        return view('admin.invesment.investment-withdrawal-list');
+        $validated = $request->validate([
+            'member_id' => ['required', 'string', 'exists:members,member_id'],
+            'investment_id' => ['required', 'string'],
+        ]);
+
+        $investment = Investment::where('investment_id', $validated['investment_id'])
+            ->where('member_id', $validated['member_id'])
+            ->first();
+
+        if (! $investment) {
+            return response()->json(['message' => 'The investment does not belong to the selected member.'], 422);
+        }
+
+        $available = $this->availableWithdrawalAmount($investment);
+
+        return response()->json([
+            'member_id' => $investment->member_id,
+            'member_name' => $investment->member_name,
+            'investment_id' => $investment->investment_id,
+            'investment_amount' => $investment->amount,
+            'available_amount' => $available,
+            'eligible' => $investment->status === 'expired' && bccomp($available, '0', 4) > 0,
+            'message' => $investment->status === 'expired' ? null : 'Only expired investments are eligible for withdrawal.',
+        ]);
+    }
+
+    public function investmentWithdrawalInvestmentLookup(Request $request)
+    {
+        $validated = $request->validate([
+            'investment_id' => ['required', 'string', 'exists:investments,investment_id'],
+        ]);
+
+        $investment = Investment::where('investment_id', $validated['investment_id'])->firstOrFail();
+
+        return response()->json([
+            'investment_id' => $investment->investment_id,
+            'investment_amount' => $investment->amount,
+        ]);
+    }
+
+    public function storeInvestmentWithdrawal(Request $request)
+    {
+        $validated = $request->validate([
+            'member_id' => ['required', 'string', 'exists:members,member_id'],
+            'investment_id' => ['required', 'string', 'exists:investments,investment_id'],
+            'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+        ], [
+            'amount.gt' => 'Withdrawal amount must be greater than 0.',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            $investment = Investment::query()
+                ->where('investment_id', $validated['investment_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($investment->member_id !== $validated['member_id']) {
+                throw ValidationException::withMessages(['investment_id' => 'The selected investment does not belong to this member.']);
+            }
+
+            if ($investment->status !== 'expired') {
+                throw ValidationException::withMessages(['investment_id' => 'Only expired investments are eligible for withdrawal.']);
+            }
+
+            if (InvestmentWithdrawal::where('investment_id', $investment->investment_id)->exists()) {
+                throw ValidationException::withMessages(['investment_id' => 'A withdrawal request already exists for this investment.']);
+            }
+
+            $available = $this->availableWithdrawalAmount($investment);
+
+            if (bccomp((string) $validated['amount'], $available, 4) > 0) {
+                throw ValidationException::withMessages(['amount' => 'Withdrawal amount exceeds the available amount.']);
+            }
+
+            InvestmentWithdrawal::create([
+                'withdrawal_id' => $this->generateWithdrawalId(),
+                'member_id' => $investment->member_id,
+                'member_name' => $investment->member_name,
+                'investment_id' => $investment->investment_id,
+                'investment_amount' => $investment->amount,
+                'withdrawal_amount' => $validated['amount'],
+                'status' => 'pending',
+                'withdrawn_at' => now(),
+            ]);
+        }, 3);
+
+        return redirect()->route('admin.investments.investment-withdrawal-entry')
+            ->with('success', 'Investment withdrawal request created successfully.');
+    }
+
+    public function investmentWithdrawalList(Request $request)
+    {
+        $query = InvestmentWithdrawal::query();
+
+        if ($request->filled('member_id')) {
+            $search = trim((string) $request->query('member_id'));
+            $query->where(function ($withdrawalQuery) use ($search) {
+                $withdrawalQuery->where('member_id', 'like', '%' . $search . '%')
+                    ->orWhere('member_name', 'like', '%' . $search . '%')
+                    ->orWhere('investment_id', 'like', '%' . $search . '%')
+                    ->orWhere('withdrawal_id', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('withdrawn_at', '>=', $request->query('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('withdrawn_at', '<=', $request->query('to_date'));
+        }
+
+        return view('admin.invesment.investment-withdrawal-list', [
+            'withdrawals' => $query->latest('withdrawn_at')->paginate(10)->withQueryString(),
+            'totalAmount' => (clone $query)->sum('withdrawal_amount'),
+        ]);
+    }
+
+    protected function availableWithdrawalAmount(Investment $investment): string
+    {
+        $withdrawn = (string) InvestmentWithdrawal::query()
+            ->where('investment_id', $investment->investment_id)
+            ->whereIn('status', ['pending', 'approved', 'paid'])
+            ->sum('withdrawal_amount');
+
+        return bcsub((string) $investment->amount, $withdrawn, 4);
+    }
+
+    protected function generateWithdrawalId(): string
+    {
+        do {
+            $withdrawalId = 'IWD' . random_int(100000, 999999);
+        } while (InvestmentWithdrawal::where('withdrawal_id', $withdrawalId)->exists());
+
+        return $withdrawalId;
     }
 
 }

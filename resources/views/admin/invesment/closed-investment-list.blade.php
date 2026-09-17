@@ -14,6 +14,7 @@
 
 
         <!-- SEARCH AREA -->
+        <form method="GET" action="{{ route('admin.investments.closed-investments') }}" id="closedInvestmentForm">
         <div class="row align-items-end">
 
             <!-- MEMBER ID -->
@@ -21,7 +22,8 @@
                 <label>Member ID</label>
 
                 <input type="text"
-                     
+                      name="member_id"
+                      value="{{ request('member_id') }}"
                        class="form-control"
                        placeholder="Enter Member ID">
             </div>
@@ -32,7 +34,8 @@
                 <label>From Close Date</label>
 
                 <input type="date"
-                      
+                      name="from_date"
+                      value="{{ request('from_date') }}"
                        class="form-control">
             </div>
 
@@ -42,7 +45,8 @@
                 <label>To Close Date</label>
 
                 <input type="date"
-                       
+                      name="to_date"
+                      value="{{ request('to_date') }}"
                        class="form-control">
             </div>
 
@@ -58,7 +62,7 @@
 
             <button type="button"
                     class="btn btn-primary"
-                    ">
+                    onclick="window.location.href='{{ route('admin.investments.closed-investments.export') }}?' + new URLSearchParams(new FormData(document.getElementById('closedInvestmentForm'))).toString()">
 
                 <i class="bi bi-file-earmark-excel"></i>
                 Export to Excel
@@ -68,7 +72,7 @@
 
             <button type="button"
                     class="btn btn-primary"
-                    onclick="searchInvestment()">
+                    onclick="document.getElementById('closedInvestmentForm').submit()">
 
                 <i class="bi bi-search"></i>
                 Search
@@ -78,7 +82,7 @@
 
             <button type="button"
                     class="btn btn-primary"
-                   ">
+                    onclick="window.location.href='{{ route('admin.investments.closed-investments') }}'">
 
                 <i class="bi bi-arrow-counterclockwise"></i>
                 Reset
@@ -86,6 +90,7 @@
             </button>
 
         </div>
+        </form>
 
           <div class="col-md-2 mb-3">
 
@@ -93,7 +98,7 @@
 
                     <span>Total Amount (USDT)</span>
 
-                    <strong>160838.6922</strong>
+                    <strong>{{ rtrim(rtrim(number_format((float) $totalAmount, 4, '.', ''), '0'), '.') ?: '0' }}</strong>
 
                 </div>
 
@@ -114,35 +119,19 @@
         </thead>
 
         <tbody>
-            <tr>
-                <td>1</td>
-                <td>MEM001</td>
-                <td>John Doe</td>
-                <td>INV001</td>
-                <td>500 USDT</td>
-                <td>26-08-2026</td>
-                <td>26-09-2026</td>
-            </tr>
-
-            <tr>
-                <td>2</td>
-                <td>MEM002</td>
-                <td>Rahul Das</td>
-                <td>INV002</td>
-                <td>1,000 USDT</td>
-                <td>26-08-2026</td>
-                <td>26-10-2026</td>
-            </tr>
-
-            <tr>
-                <td>3</td>
-                <td>MEM003</td>
-                <td>David Smith</td>
-                <td>INV003</td>
-                <td>750 USDT</td>
-                <td>25-08-2026</td>
-                <td>25-09-2026</td>
-            </tr>
+            @forelse ($investments as $investment)
+                <tr>
+                    <td>{{ $investments->firstItem() + $loop->index }}</td>
+                    <td>{{ $investment->member_id }}</td>
+                    <td>{{ $investment->member_name }}</td>
+                    <td>{{ $investment->investment_id }}</td>
+                    <td>{{ rtrim(rtrim(number_format((float) $investment->amount, 4, '.', ''), '0'), '.') ?: '0' }} USDT</td>
+                    <td>{{ $investment->created_at?->format('d-m-Y') }}</td>
+                    <td>{{ $investment->closed_at?->format('d-m-Y') }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="7" class="text-center">No closed investments found.</td></tr>
+            @endforelse
         </tbody>
     </table>
 </div>
@@ -152,26 +141,12 @@
         <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
 
             <div class="table-info">
-                Showing 1 to 3 of 3 entries
+                Showing {{ $investments->firstItem() ?? 0 }} to {{ $investments->lastItem() ?? 0 }} of {{ $investments->total() }} entries
             </div>
 
             <nav>
 
-                <ul class="pagination pagination-sm mb-0">
-
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Previous</a>
-                    </li>
-
-                    <li class="page-item active">
-                        <a class="page-link" href="#">1</a>
-                    </li>
-
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Next</a>
-                    </li>
-
-                </ul>
+                {{ $investments->links('pagination::bootstrap-5') }}
 
             </nav>
 
