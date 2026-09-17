@@ -30,6 +30,16 @@ class RoiDevelopmentSeeder extends Seeder
         $memberNames[] = 'Roi Test Member AD';
         $memberNames[] = 'Roi Test Member AE';
         $memberNames[] = 'Roi Test Member AF';
+        $investmentAmounts = [
+            '100.0000', '200.0000', '300.0000', '500.0000',
+            '750.0000', '1000.0000', '1500.0000', '2000.0000',
+            '250.0000', '400.0000', '600.0000', '800.0000',
+            '1200.0000', '1800.0000', '2200.0000', '3000.0000',
+            '350.0000', '450.0000', '550.0000', '650.0000',
+            '900.0000', '1100.0000', '1300.0000', '1600.0000',
+            '1700.0000', '1900.0000', '2100.0000', '2400.0000',
+            '2800.0000', '3200.0000', '4000.0000', '5000.0000',
+        ];
 
         DB::transaction(function () use (&$members, &$previousMember, $memberNames) {
             foreach (range(1, 32) as $level) {
@@ -59,7 +69,9 @@ class RoiDevelopmentSeeder extends Seeder
         });
 
         foreach ($members as $level => $member) {
-            DB::transaction(function () use ($member, $level, $levelCommissionGenerationService) {
+            $investmentAmount = $investmentAmounts[$level - 1];
+
+            DB::transaction(function () use ($member, $level, $investmentAmount, $levelCommissionGenerationService) {
                 $investment = Investment::where('member_id', $member->member_id)->first();
 
                 if (! $investment) {
@@ -67,7 +79,7 @@ class RoiDevelopmentSeeder extends Seeder
                         'investment_id' => $this->generateInvestmentId(),
                         'member_id' => $member->member_id,
                         'member_name' => $member->member_name,
-                        'amount' => '100.0000',
+                        'amount' => $investmentAmount,
                         'status' => 'active',
                     ]);
 
@@ -81,7 +93,7 @@ class RoiDevelopmentSeeder extends Seeder
                 } else {
                     $investment->update([
                         'member_name' => $member->member_name,
-                        'amount' => '100.0000',
+                        'amount' => $investmentAmount,
                         'status' => 'active',
                         'closed_at' => null,
                     ]);
@@ -92,11 +104,13 @@ class RoiDevelopmentSeeder extends Seeder
             });
 
             $this->command?->info(sprintf(
-                'Level %02d: %s -> %s -> %s',
+                'Level %02d: %s -> %s -> %s | Investment: %s USDT | Expected daily ROI: %.4f USDT',
                 $level,
                 $member->member_id,
                 $member->sponsor_id,
-                $member->member_name
+                $member->member_name,
+                $investmentAmount,
+                (float) $investmentAmount / 600
             ));
         }
 

@@ -210,4 +210,53 @@ class RoiGenerationTest extends TestCase
         auth()->logout();
         $this->get(route('admin.report.roi-report'))->assertRedirect(route('login'));
     }
+
+    public function test_paginated_roi_and_level_reports_keep_full_filtered_totals_on_page_two(): void
+    {
+        $member = $this->member();
+
+        foreach (range(1, 11) as $index) {
+            RoiTransaction::create([
+                'reference' => 'ROI-REPORT-PAGE-' . $index,
+                'investment_id' => 'INV-REPORT-PAGE-' . $index,
+                'member_id' => $member->member_id,
+                'member_name' => $member->member_name,
+                'on_amount' => '100.0000',
+                'rate_percentage' => '5.000',
+                'income_amount' => '1.0000',
+                'roi_date' => '2026-09-' . str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+                'status' => 'generated',
+                'withdrawable_on' => '2026-10-01',
+            ]);
+
+            LevelCommissionTransaction::create([
+                'reference' => 'LC-REPORT-PAGE-' . $index,
+                'investment_id' => 'INV-REPORT-PAGE-' . $index,
+                'member_id' => $member->member_id,
+                'member_name' => $member->member_name,
+                'from_member_id' => 'ST999999',
+                'from_member_name' => 'Source',
+                'level' => 1,
+                'on_amount' => '100.0000',
+                'rate_percentage' => '1.000',
+                'income_amount' => '2.0000',
+            ]);
+        }
+
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('admin.report.roi-report', [
+            'member_id' => $member->member_id,
+            'page' => 2,
+        ]))
+            ->assertOk()
+            ->assertSee('<strong>11</strong>', false);
+
+        $this->get(route('admin.report.level-income', [
+            'member_id' => $member->member_id,
+            'page' => 2,
+        ]))
+            ->assertOk()
+            ->assertSee('<strong>22</strong>', false);
+    }
 }

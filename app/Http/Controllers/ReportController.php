@@ -11,10 +11,12 @@ class ReportController extends Controller
     public function roiReport(Request $request)
     {
         $query = $this->roiQuery($request);
+        $totalAmount = (clone $query)->sum('income_amount');
+        $transactions = $query->latest()->paginate(10)->withQueryString();
 
         return view('admin.reports.roi-report', [
-            'transactions' => $query->latest()->paginate(10)->withQueryString(),
-            'totalAmount' => (clone $query)->sum('income_amount'),
+            'transactions' => $transactions,
+            'totalAmount' => $totalAmount,
         ]);
     }
 
@@ -47,10 +49,12 @@ class ReportController extends Controller
     public function levelIncomeReport(Request $request)
     {
         $query = $this->levelIncomeQuery($request);
+        $totalAmount = (clone $query)->sum('income_amount');
+        $transactions = $query->latest()->paginate(10)->withQueryString();
 
         return view('admin.reports.level-income', [
-            'transactions' => $query->latest()->paginate(10)->withQueryString(),
-            'totalAmount' => (clone $query)->sum('income_amount'),
+            'transactions' => $transactions,
+            'totalAmount' => $totalAmount,
         ]);
     }
 
