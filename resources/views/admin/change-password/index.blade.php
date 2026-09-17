@@ -31,7 +31,6 @@
                     <input type="password"
                            id="currentPassword"
                            name="current_password"
-                           value="{{ old('current_password') }}"
                            class="form-control"
                            data-error-for="current_password"
                            placeholder="Enter Old Password">
@@ -47,7 +46,6 @@
                     <input type="password"
                            id="newPassword"
                            name="new_password"
-                           value="{{ old('new_password') }}"
                            class="form-control"
                            data-error-for="new_password"
                            placeholder="Enter New Password">
@@ -63,7 +61,6 @@
                     <input type="password"
                            id="confirmPassword"
                            name="new_password_confirmation"
-                           value="{{ old('new_password_confirmation') }}"
                            class="form-control"
                            data-error-for="new_password_confirmation"
                            placeholder="Confirm New Password">

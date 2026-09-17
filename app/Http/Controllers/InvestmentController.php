@@ -56,7 +56,7 @@ class InvestmentController extends Controller
                 Rule::unique('investments', 'investment_id'),
             ],
             'member_id' => ['required', 'string', 'exists:members,member_id'],
-            'amount' => ['required', 'numeric', 'min:100'],
+            'amount' => ['required', 'numeric', 'min:100', 'decimal:0,4'],
         ], [
             'member_id.exists' => 'The selected member id is invalid.',
             'amount.min' => 'Investment Amount must be at least 100 USDT.',

@@ -78,6 +78,20 @@ class InvestmentEntryTest extends TestCase
         ]);
     }
 
+    public function test_investment_amount_rejects_more_than_four_decimal_places(): void
+    {
+        $this->signIn();
+        $member = $this->member();
+
+        $this->post(route('admin.investments.store'), [
+            'investment_id' => 'INV100004',
+            'member_id' => $member->member_id,
+            'amount' => '100.12345',
+        ])->assertSessionHasErrors('amount');
+
+        $this->assertDatabaseCount('investments', 0);
+    }
+
     public function test_invalid_member_id_is_rejected(): void
     {
         $this->signIn();

@@ -78,6 +78,28 @@ class ChangePasswordTest extends TestCase
         $this->assertTrue(Hash::check('old-password-123', $user->password));
     }
 
+    public function test_password_fields_are_not_repopulated_after_validation_failure(): void
+    {
+        $user = User::factory()->create([
+            'password' => Hash::make('old-password-123'),
+        ]);
+
+        $this->actingAs($user);
+
+        $this->from(route('admin.change-password.index'))
+            ->post(route('admin.change-password.update'), [
+                'current_password' => 'submitted-current-password',
+                'new_password' => 'submitted-new-password',
+                'new_password_confirmation' => 'different-password',
+            ])
+            ->assertRedirect(route('admin.change-password.index'));
+
+        $this->get(route('admin.change-password.index'))
+            ->assertDontSee('value="submitted-current-password"', false)
+            ->assertDontSee('value="submitted-new-password"', false)
+            ->assertDontSee('value="different-password"', false);
+    }
+
     public function test_empty_required_fields_show_validation_errors(): void
     {
         $user = User::factory()->create([

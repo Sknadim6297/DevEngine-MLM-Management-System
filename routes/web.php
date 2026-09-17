@@ -65,7 +65,7 @@ Route::post('/admin/login', function (Request $request) {
         ])
         ->onlyInput('email');
 
-})->name('login.submit');
+})->middleware('throttle:5,1')->name('login.submit');
 
 
 /*
@@ -74,7 +74,7 @@ Route::post('/admin/login', function (Request $request) {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'admin'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
@@ -98,14 +98,12 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::post('/admin/logout', function (Request $request) {
-
         Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/admin/login');
-
+        return redirect()->route('login');
     })->name('admin.logout');
 
 
