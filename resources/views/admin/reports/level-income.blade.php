@@ -51,6 +51,19 @@
                        class="form-control">
             </div>
 
+
+            <!-- LEVEL -->
+            <div class="col-md-2 mb-3">
+                <label>Level</label>
+
+                <select name="level" class="form-control">
+                    <option value="">All Levels</option>
+                    @foreach ($levels as $level)
+                        <option value="{{ $level }}" @selected((string) request('level') === (string) $level)>Level {{ $level }}</option>
+                    @endforeach
+                </select>
+            </div>
+
         </div>
 
 

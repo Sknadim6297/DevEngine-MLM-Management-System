@@ -51,10 +51,16 @@ class ReportController extends Controller
         $query = $this->levelIncomeQuery($request);
         $totalAmount = (clone $query)->sum('income_amount');
         $transactions = $query->latest()->paginate(10)->withQueryString();
+        $levels = LevelCommissionTransaction::query()
+            ->whereNotNull('level')
+            ->distinct()
+            ->orderBy('level')
+            ->pluck('level');
 
         return view('admin.reports.level-income', [
             'transactions' => $transactions,
             'totalAmount' => $totalAmount,
+            'levels' => $levels,
         ]);
     }
 
@@ -109,6 +115,10 @@ class ReportController extends Controller
         $query = LevelCommissionTransaction::query();
 
         $this->applyCommonFilters($query, $request);
+
+        if ($request->filled('level')) {
+            $query->where('level', $request->query('level'));
+        }
 
         return $query;
     }
