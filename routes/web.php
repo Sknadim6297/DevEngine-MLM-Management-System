@@ -13,6 +13,8 @@ use App\Http\Controllers\genealogyController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LevelCommissionController;
+use App\Http\Controllers\Member\NewMemberRegistrationController;
+use App\Http\Controllers\PublicMemberAuthController;
 use App\Models\Member;
 use App\Models\User;
 
@@ -47,6 +49,41 @@ Route::get('/admin/login', function () {
 
     return view('admin.login.login');
 })->name('login');
+
+Route::get('/register', [PublicMemberAuthController::class, 'register'])
+    ->name('member.register');
+
+Route::post('/register', [PublicMemberAuthController::class, 'storeRegistration'])
+    ->middleware('throttle:20,1')
+    ->name('member.register.store');
+
+Route::get('/register/check-sponsor', [PublicMemberAuthController::class, 'checkSponsor'])
+    ->middleware('throttle:30,1')
+    ->name('member.register.check-sponsor');
+
+Route::get('/forgot-password', [PublicMemberAuthController::class, 'forgot'])
+    ->name('member.forgot');
+
+Route::post('/forgot-password/send-otp', [PublicMemberAuthController::class, 'sendOtp'])
+    ->middleware('throttle:3,10')
+    ->name('member.forgot.send');
+
+Route::post('/forgot-password/resend-otp', [PublicMemberAuthController::class, 'resendOtp'])
+    ->middleware('throttle:3,10')
+    ->name('member.forgot.resend');
+
+Route::get('/forgot-password/verify', [PublicMemberAuthController::class, 'verifyForm'])
+    ->name('member.forgot.verify');
+
+Route::post('/forgot-password/verify', [PublicMemberAuthController::class, 'verifyOtp'])
+    ->middleware('throttle:10,10')
+    ->name('member.forgot.verify.store');
+
+Route::get('/forgot-password/reset', [PublicMemberAuthController::class, 'resetForm'])
+    ->name('member.forgot.reset');
+
+Route::post('/forgot-password/reset', [PublicMemberAuthController::class, 'resetPassword'])
+    ->name('member.forgot.reset.store');
 
 
 Route::post('/admin/login', function (Request $request) {
@@ -454,6 +491,15 @@ Route::middleware(['auth', 'admin'])->group(function () {
 });
 
 Route::middleware('member.context')->group(function () {
+    Route::get('/member/registration', [NewMemberRegistrationController::class, 'create'])
+        ->name('member.registration');
+
+    Route::get('/member/registration/check-sponsor', [NewMemberRegistrationController::class, 'checkSponsor'])
+        ->name('member.registration.check-sponsor');
+
+    Route::post('/member/registration', [NewMemberRegistrationController::class, 'store'])
+        ->name('member.registration.store');
+
     Route::get('/member/dashboard', function (Request $request) {
         $member = Member::where('member_id', $request->session()->get('member_context_id'))->firstOrFail();
 

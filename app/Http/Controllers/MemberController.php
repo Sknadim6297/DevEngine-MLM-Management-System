@@ -24,6 +24,7 @@ class MemberController extends Controller
                     'joining_date' => $member->created_at ? $member->created_at->format('d-M-Y') : 'N/A',
                     'sponsor_id' => $member->sponsor_id,
                     'sponsor_name' => $member->sponsor_name,
+                    'email' => $member->email,
                     'mobile' => $member->mobile_no,
                     'pan_card_no' => $member->pan_card_no,
                     'investment_amount' => (float) ($member->investment_amount ?? 0),

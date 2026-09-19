@@ -330,6 +330,12 @@
                 </div>
             @endif
 
+            @if (session('success'))
+                <div class="alert alert-success mb-3">
+                    {{ session('success') }}
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('login.submit') }}">
                 @csrf
 
@@ -354,7 +360,7 @@
                         <input type="checkbox" name="remember" value="1">
                         Remember me
                     </label>
-                    <a href="#" class="forgot">Forgot Password?</a>
+                    <a href="{{ route('member.forgot') }}" class="forgot">Forgot Password?</a>
                 </div>
 
                 <button type="submit" class="login-btn">
@@ -362,7 +368,7 @@
                 </button>
             </form>
 
-            <div class="login-footer">Don't have an account? <a href="#">Create Account</a></div>
+            <div class="login-footer">Don't have an account? <a href="{{ route('member.register') }}">Create Account</a></div>
         </div>
     </div>
 

@@ -44,6 +44,7 @@
                             <th>Joining Date</th>
                             <th>Sponsor ID</th>
                             <th>Sponsor Name</th>
+                            <th>Email</th>
                             <th>Mobile No</th>
                             <th>PAN Card Number</th>
                             <th>Password</th>
@@ -58,6 +59,7 @@
                                 <td>{{ $member['joining_date'] }}</td>
                                 <td>{{ $member['sponsor_id'] }}</td>
                                 <td>{{ $member['sponsor_name'] }}</td>
+                                <td>{{ $member['email'] }}</td>
                                 <td>{{ $member['mobile'] }}</td>
                                 <td>{{ $member['pan_card_no'] }}</td>
                                 <td>
@@ -69,7 +71,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center">No inactive members found.</td>
+                                <td colspan="10" class="text-center">No inactive members found.</td>
                             </tr>
                         @endforelse
                     </tbody>

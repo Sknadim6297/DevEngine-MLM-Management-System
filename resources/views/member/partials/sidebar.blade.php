@@ -19,11 +19,28 @@
             <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
         </a>
 
-        <div class="collapse submenu" id="memberMenu">
-            <a href="{{ route('member.dashboard') }}#profile">
-                <i class="bi bi-person-vcard"></i>
-                <span>Profile</span>
+     <div class="collapse submenu" id="memberMenu">
+
+            <a href="{{ route('member.registration') }}">
+                <i class="bi bi-person"></i>
+                <span>New Member Registration</span>
             </a>
+
+            <a href="{{ route('admin.members.update') }}">
+                <i class="bi bi-person-plus"></i>
+                <span>View/Update Profile</span>
+            </a>
+
+            <a href="{{ route('admin.members.inactive') }}">
+                <i class="bi bi-card-list"></i>
+                <span>Direct Member List</span>
+            </a>
+
+            <a href="{{ route('admin.members.active') }}">
+                <i class="bi bi-person-check"></i>
+                <span>Team Member List</span>
+            </a>
+
         </div>
 
         <a href="#genealogyMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"

@@ -44,6 +44,7 @@
                             <th>Joining Date</th>
                             <th>Sponsor ID</th>
                             <th>Sponsor Name</th>
+                            <th>Email</th>
                             <th>Mobile No</th>
                             <th>PAN Card Number</th>
                             <th>Investment Amount (USDT)</th>
@@ -62,6 +63,7 @@
                                 <td>{{ $member['joining_date'] }}</td>
                                 <td>{{ $member['sponsor_id'] }}</td>
                                 <td>{{ $member['sponsor_name'] }}</td>
+                                <td>{{ $member['email'] }}</td>
                                 <td>{{ $member['mobile'] }}</td>
                                 <td>{{ $member['pan_card_no'] }}</td>
                                 <td>{{ rtrim(rtrim(number_format($member['investment_amount'], 4, '.', ''), '0'), '.') ?: '0' }} USDT</td>
@@ -74,7 +76,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="text-center">No active members found.</td>
+                                <td colspan="12" class="text-center">No active members found.</td>
                             </tr>
                         @endforelse
                     </tbody>

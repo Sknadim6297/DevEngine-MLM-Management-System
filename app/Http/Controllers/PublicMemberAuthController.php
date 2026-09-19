@@ -1,0 +1,263 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Mail\MemberPasswordOtpMail;
+use App\Mail\MemberWelcomeMail;
+use App\Models\Member;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+
+class PublicMemberAuthController extends Controller
+{
+    private const RESET_MEMBER = 'member_password_reset_member_id';
+    private const RESET_OTP = 'member_password_reset_otp_id';
+    private const RESET_VERIFIED = 'member_password_reset_verified';
+
+    public function register(): View
+    {
+        return view('auth.register', [
+            'generatedMemberId' => $this->generateMemberId(),
+        ]);
+    }
+
+    public function checkSponsor(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $sponsorId = strtoupper(trim((string) $request->query('sponsor_id', '')));
+        $sponsor = $sponsorId === '' ? null : Member::where('member_id', $sponsorId)->first();
+
+        return response()->json([
+            'exists' => $sponsor !== null,
+            'sponsor_name' => $sponsor?->member_name,
+            'message' => $sponsor ? 'Sponsor ID is valid.' : 'Invalid Sponsor ID.',
+        ]);
+    }
+
+    public function storeRegistration(Request $request): RedirectResponse
+    {
+        $request->merge([
+            'member_name' => trim((string) $request->input('member_name')),
+            'sponsor_id' => strtoupper(trim((string) $request->input('sponsor_id'))),
+            'mobile_no' => trim((string) $request->input('mobile_no')),
+            'email' => trim((string) $request->input('email')),
+        ]);
+
+        $validated = $request->validate([
+            'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
+            'sponsor_id' => ['required', 'string', 'exists:members,member_id'],
+            'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
+            'email' => ['required', 'email', 'unique:members,email'],
+        ]);
+
+        if (Member::where('mobile_no', $validated['mobile_no'])->count() >= 3) {
+            return back()->withErrors([
+                'mobile_no' => 'This mobile number has already been used 3 times.',
+            ])->withInput();
+        }
+
+        $sponsor = Member::where('member_id', $validated['sponsor_id'])->firstOrFail();
+        $temporaryPassword = $this->temporaryPassword();
+
+        $member = DB::transaction(function () use ($validated, $sponsor, $temporaryPassword) {
+            return Member::create([
+                'member_id' => $this->generateMemberId(),
+                'sponsor_id' => $sponsor->member_id,
+                'sponsor_name' => $sponsor->member_name,
+                'member_name' => $validated['member_name'],
+                'mobile_no' => $validated['mobile_no'],
+                'email' => $validated['email'],
+                'password' => Hash::make($temporaryPassword),
+                'status' => 'active',
+            ]);
+        });
+
+        Mail::to($member->email)->send(new MemberWelcomeMail(
+            $member->member_id,
+            $member->member_name,
+            $temporaryPassword,
+        ));
+
+        return redirect()->route('member.register')
+            ->with('success', 'Registration successful. Your Member ID is ' . $member->member_id . '.')
+            ->with('temporary_password', $temporaryPassword);
+    }
+
+    public function forgot(): View
+    {
+        return view('auth.forgot-member');
+    }
+
+    public function sendOtp(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'member_id' => ['required', 'string'],
+        ]);
+
+        $member = Member::where('member_id', strtoupper(trim($validated['member_id'])))->first();
+
+        if (! $member || ! $member->email) {
+            return back()->with('success', 'If that Member ID exists, an OTP will be sent to its registered email.');
+        }
+
+        $this->issueOtp($request, $member);
+
+        return redirect()->route('member.forgot.verify')
+            ->with('masked_email', $this->maskEmail($member->email));
+    }
+
+    public function resendOtp(Request $request): RedirectResponse
+    {
+        $member = Member::where('member_id', $request->session()->get(self::RESET_MEMBER))->first();
+
+        if (! $member || ! $member->email) {
+            return redirect()->route('member.forgot');
+        }
+
+        $this->issueOtp($request, $member);
+
+        return redirect()->route('member.forgot.verify')
+            ->with('masked_email', $this->maskEmail($member->email));
+    }
+
+    public function verifyForm(Request $request): RedirectResponse|View
+    {
+        if (! $request->session()->has(self::RESET_OTP)) {
+            return redirect()->route('member.forgot');
+        }
+
+        return view('auth.verify-member-otp', [
+            'maskedEmail' => session('masked_email'),
+        ]);
+    }
+
+    public function verifyOtp(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'otp' => ['required', 'digits:6'],
+        ]);
+
+        $record = DB::table('member_password_otps')
+            ->where('id', $request->session()->get(self::RESET_OTP))
+            ->where('member_id', $request->session()->get(self::RESET_MEMBER))
+            ->first();
+
+        if (! $record || $record->verified_at || now()->greaterThan($record->expires_at) || $record->attempts >= 5) {
+            return back()->withErrors(['otp' => 'This OTP is invalid or has expired.']);
+        }
+
+        if (! Hash::check($validated['otp'], $record->otp_hash)) {
+            DB::table('member_password_otps')->where('id', $record->id)->increment('attempts');
+
+            return back()->withErrors(['otp' => 'This OTP is invalid or has expired.']);
+        }
+
+        DB::table('member_password_otps')->where('id', $record->id)->update([
+            'verified_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $request->session()->put(self::RESET_VERIFIED, true);
+
+        return redirect()->route('member.forgot.reset');
+    }
+
+    public function resetForm(Request $request): RedirectResponse|View
+    {
+        if (! $request->session()->get(self::RESET_VERIFIED)) {
+            return redirect()->route('member.forgot');
+        }
+
+        return view('auth.reset-member-password');
+    }
+
+    public function resetPassword(Request $request): RedirectResponse
+    {
+        if (! $request->session()->get(self::RESET_VERIFIED)) {
+            return redirect()->route('member.forgot');
+        }
+
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $member = Member::where('member_id', $request->session()->get(self::RESET_MEMBER))->first();
+
+        if (! $member) {
+            return redirect()->route('member.forgot');
+        }
+
+        DB::transaction(function () use ($member, $validated, $request) {
+            $member->update(['password' => Hash::make($validated['password'])]);
+            DB::table('member_password_otps')
+                ->where('id', $request->session()->get(self::RESET_OTP))
+                ->delete();
+        });
+
+        $request->session()->forget([
+            self::RESET_MEMBER,
+            self::RESET_OTP,
+            self::RESET_VERIFIED,
+            'masked_email',
+        ]);
+
+        return redirect()->route('login')->with('success', 'Password reset successfully.');
+    }
+
+    private function generateMemberId(): string
+    {
+        for ($counter = 100000; $counter <= 999999; $counter++) {
+            $candidate = 'ST' . $counter;
+
+            if (! Member::where('member_id', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        throw new \RuntimeException('No available Member ID found.');
+    }
+
+    private function temporaryPassword(): string
+    {
+        return Str::random(12);
+    }
+
+    private function issueOtp(Request $request, Member $member): void
+    {
+        $otp = (string) random_int(100000, 999999);
+        $otpRecord = DB::transaction(function () use ($member, $otp) {
+            DB::table('member_password_otps')
+                ->where('member_id', $member->member_id)
+                ->whereNull('verified_at')
+                ->delete();
+
+            return DB::table('member_password_otps')->insertGetId([
+                'member_id' => $member->member_id,
+                'email' => $member->email,
+                'otp_hash' => Hash::make($otp),
+                'expires_at' => now()->addMinutes(10),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $request->session()->put([
+            self::RESET_MEMBER => $member->member_id,
+            self::RESET_OTP => $otpRecord,
+            self::RESET_VERIFIED => false,
+        ]);
+
+        Mail::to($member->email)->send(new MemberPasswordOtpMail($member->member_id, $otp));
+    }
+
+    private function maskEmail(string $email): string
+    {
+        [$name, $domain] = explode('@', $email, 2);
+        $visible = substr($name, 0, 1);
+
+        return $visible . str_repeat('*', max(1, strlen($name) - 1)) . '@' . $domain;
+    }
+}
