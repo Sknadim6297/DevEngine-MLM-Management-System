@@ -48,16 +48,41 @@ class PublicMemberAuthTest extends TestCase
         $this->assertMatchesRegularExpression('/^ST\d{6}$/', $member->member_id);
         $this->assertNotSame($sponsor->member_id, $member->member_id);
         $this->assertSame('Rahul Das', $member->sponsor_name);
+        $this->assertSame('inactive', $member->status);
         $this->assertTrue(Hash::check($this->welcomePassword(), $member->password));
 
         $this->actingAs(User::factory()->create(['is_admin' => true]))
-            ->get(route('admin.members.active'))
+            ->get(route('admin.members.inactive'))
             ->assertOk()
             ->assertSeeText($member->member_id)
             ->assertSeeText('New Member')
             ->assertSeeText('Rahul Das')
             ->assertSeeText('new@example.com')
             ->assertSeeText('9876543212');
+
+        $this->post(route('admin.investments.store'), [
+            'investment_id' => 'INV' . $member->member_id,
+            'member_id' => $member->member_id,
+            'amount' => 99,
+        ])->assertSessionHasErrors('amount');
+
+        $member->refresh();
+        $this->assertSame('inactive', $member->status);
+        $this->assertDatabaseCount('investments', 0);
+
+        $this->post(route('admin.investments.store'), [
+            'investment_id' => 'INV' . $member->member_id,
+            'member_id' => $member->member_id,
+            'amount' => 100,
+        ])->assertRedirect(route('admin.investments.entry'));
+
+        $member->refresh();
+        $this->assertSame('active', $member->status);
+        $this->assertDatabaseHas('investments', [
+            'member_id' => $member->member_id,
+            'amount' => 100,
+            'status' => 'active',
+        ]);
 
         $this->post(route('login.submit'), [
             'member_id' => $member->member_id,
@@ -88,6 +113,25 @@ class PublicMemberAuthTest extends TestCase
             ])
             ->assertRedirect(route('member.register'))
             ->assertSessionHasErrors(['email']);
+    }
+
+    public function test_default_admin_sponsor_id_is_accepted(): void
+    {
+        Mail::fake();
+
+        $this->post(route('member.register.store'), [
+            'member_name' => 'New Member',
+            'sponsor_id' => 'ST666666',
+            'mobile_no' => '9876543212',
+            'email' => 'new@example.com',
+        ])->assertRedirect(route('member.register'));
+
+        $this->assertDatabaseHas('members', [
+            'sponsor_id' => 'ST666666',
+            'sponsor_name' => 'Admin',
+            'email' => 'new@example.com',
+            'status' => 'inactive',
+        ]);
     }
 
     public function test_member_can_reset_password_with_an_expiring_single_use_otp(): void

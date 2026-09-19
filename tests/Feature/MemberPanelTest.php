@@ -66,10 +66,23 @@ class MemberPanelTest extends TestCase
 
     public function test_admin_can_logout_from_member_area_without_member_context(): void
     {
+        $member = $this->createMember('ST100004', 'Preview Member', 'preview@example.com');
         $this->actingAs(User::factory()->create(['is_admin' => true]));
+        $this->withSession(['member_context_id' => $member->member_id]);
 
         $this->post(route('member.logout'))
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('member.register'));
+    }
+
+    public function test_member_logout_get_request_also_clears_context(): void
+    {
+        $member = $this->createMember('ST100005', 'Logout Member', 'logout@example.com');
+        $this->withSession(['member_context_id' => $member->member_id]);
+
+        $this->get(route('member.logout'))
+            ->assertRedirect(route('login'));
+
+        $this->assertFalse(session()->has('member_context_id'));
     }
 
     private function createMember(string $memberId, string $name, string $email): Member

@@ -2,9 +2,9 @@
     <div class="sidebar-logo">
         <img src="{{ asset('assets/img/logo.png') }}" class="sidebar-logo-image" alt="Bright Stars">
     </div>
-            
-     <div class="mt-2 fw-semibold">Welcome</div>
-        <div class="small text-muted">{{ $member->member_id }}</div>
+    <!-- give some alignment best visibility for the welcome message -->
+     <div class="mb-2 fw-semibold text-center">Welcome</div>
+     <div class="small text-muted text-center">{{ $member->member_id }}</div>
 
     <div class="sidebar-menu">
         <a href="{{ route('member.dashboard') }}" class="active">
@@ -26,17 +26,17 @@
                 <span>New Member Registration</span>
             </a>
 
-            <a href="{{ route('admin.members.update') }}">
+            <a href="{{ route('member.profile') }}">
                 <i class="bi bi-person-plus"></i>
-                <span>View/Update Profile</span>
+                <span>View Profile</span>
             </a>
 
-            <a href="{{ route('admin.members.inactive') }}">
+            <a href="{{ route('member.team.direct') }}">
                 <i class="bi bi-card-list"></i>
                 <span>Direct Member List</span>
             </a>
 
-            <a href="{{ route('admin.members.active') }}">
+            <a href="{{ route('member.team.whole') }}">
                 <i class="bi bi-person-check"></i>
                 <span>Team Member List</span>
             </a>

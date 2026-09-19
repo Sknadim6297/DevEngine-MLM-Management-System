@@ -55,7 +55,7 @@
                         @forelse ($members as $member)
                             <tr>
                                 <td>
-                                    <a href="{{ route('admin.member-panel', ['member_id' => $member['member_id']]) }}" class="member-panel-link">Go to Member Panel</a>
+                                    <a href="{{ route('admin.member-panel', ['member_id' => $member['member_id']]) }}" class="member-panel-link" target="_blank" rel="noopener">Go to Member Panel</a>
                                 </td>
                                 <td>{{ $member['serial'] }}</td>
                                 <td>{{ $member['member_id'] }}</td>

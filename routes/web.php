@@ -14,6 +14,8 @@ use App\Http\Controllers\SupportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LevelCommissionController;
 use App\Http\Controllers\Member\NewMemberRegistrationController;
+use App\Http\Controllers\Member\ProfileController;
+use App\Http\Controllers\Member\TeamController;
 use App\Http\Controllers\PublicMemberAuthController;
 use App\Models\Member;
 use App\Models\User;
@@ -491,6 +493,21 @@ Route::middleware(['auth', 'admin'])->group(function () {
 });
 
 Route::middleware('member.context')->group(function () {
+    Route::get('/member/profile', [ProfileController::class, 'show'])
+        ->name('member.profile');
+
+    Route::get('/member/profile/edit', [ProfileController::class, 'edit'])
+        ->name('member.profile.edit');
+
+    Route::put('/member/profile', [ProfileController::class, 'update'])
+        ->name('member.profile.update');
+
+    Route::get('/member/team/direct', [TeamController::class, 'direct'])
+        ->name('member.team.direct');
+
+    Route::get('/member/team', [TeamController::class, 'whole'])
+        ->name('member.team.whole');
+
     Route::get('/member/registration', [NewMemberRegistrationController::class, 'create'])
         ->name('member.registration');
 
@@ -506,12 +523,13 @@ Route::middleware('member.context')->group(function () {
         return app(MemberController::class)->memberPanel($member->member_id, $request);
     })->name('member.dashboard');
 
-    Route::post('/member/logout', function (Request $request) {
-        $isAdminPreview = $request->user()?->is_admin === true;
-        $request->session()->forget('member_context_id');
+   Route::post('/member/logout', function (Request $request) {
+    $isAdminPreview = $request->user()?->is_admin === true;
 
-        return $isAdminPreview
-            ? redirect()->route('dashboard')
-            : redirect()->route('login');
-    })->name('member.logout');
+    $request->session()->forget('member_context_id');
+
+    return $isAdminPreview
+        ? redirect()->route('admin.login')
+        : redirect()->route('admin.login');
+})->name('member.logout');
 });

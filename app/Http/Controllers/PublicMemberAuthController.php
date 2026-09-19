@@ -29,6 +29,15 @@ class PublicMemberAuthController extends Controller
     public function checkSponsor(Request $request): \Illuminate\Http\JsonResponse
     {
         $sponsorId = strtoupper(trim((string) $request->query('sponsor_id', '')));
+
+        if ($sponsorId === 'ST666666') {
+            return response()->json([
+                'exists' => true,
+                'sponsor_name' => 'Admin',
+                'message' => 'Sponsor ID is valid.',
+            ]);
+        }
+
         $sponsor = $sponsorId === '' ? null : Member::where('member_id', $sponsorId)->first();
 
         return response()->json([
@@ -49,7 +58,7 @@ class PublicMemberAuthController extends Controller
 
         $validated = $request->validate([
             'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
-            'sponsor_id' => ['required', 'string', 'exists:members,member_id'],
+            'sponsor_id' => ['required', 'string'],
             'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
             'email' => ['required', 'email', 'unique:members,email'],
         ]);
@@ -60,19 +69,29 @@ class PublicMemberAuthController extends Controller
             ])->withInput();
         }
 
-        $sponsor = Member::where('member_id', $validated['sponsor_id'])->firstOrFail();
+        $sponsor = $validated['sponsor_id'] === 'ST666666'
+            ? null
+            : Member::where('member_id', $validated['sponsor_id'])->first();
+
+        if ($validated['sponsor_id'] !== 'ST666666' && ! $sponsor) {
+            return back()->withErrors([
+                'sponsor_id' => 'Invalid Sponsor ID.',
+            ])->withInput();
+        }
+
+        $sponsorName = $sponsor?->member_name ?? 'Admin';
         $temporaryPassword = $this->temporaryPassword();
 
-        $member = DB::transaction(function () use ($validated, $sponsor, $temporaryPassword) {
+        $member = DB::transaction(function () use ($validated, $sponsorName, $temporaryPassword) {
             return Member::create([
                 'member_id' => $this->generateMemberId(),
-                'sponsor_id' => $sponsor->member_id,
-                'sponsor_name' => $sponsor->member_name,
+                'sponsor_id' => $validated['sponsor_id'],
+                'sponsor_name' => $sponsorName,
                 'member_name' => $validated['member_name'],
                 'mobile_no' => $validated['mobile_no'],
                 'email' => $validated['email'],
                 'password' => Hash::make($temporaryPassword),
-                'status' => 'active',
+                'status' => 'inactive',
             ]);
         });
 

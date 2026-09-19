@@ -6,10 +6,14 @@
 
     <div class="d-flex align-items-center gap-3 ms-3">
         <span class="fw-semibold">Welcome back, {{ $member->member_name }}!</span>
-        <a href="{{ route('member.dashboard') }}#investment" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-circle me-1"></i>
-            Invest
-        </a>
+
+        <form action="{{ route('member.logout') }}" method="POST" class="d-inline">
+            @csrf
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-box-arrow-right"></i>
+                logout
+            </button>
+        </form>
     </div>
 
 </header>
