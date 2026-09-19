@@ -334,10 +334,10 @@
                 @csrf
 
                 <div class="input-group">
-                    <label>Email</label>
+                    <label>Member ID</label>
                     <div class="input-box">
                         <span>👤</span>
-                        <input type="email" name="email" value="{{ old('email') }}" placeholder="Enter email" autocomplete="email" required>
+                        <input type="text" name="member_id" value="{{ old('member_id') }}" placeholder="Enter Member ID" autocomplete="username" required>
                     </div>
                 </div>
 

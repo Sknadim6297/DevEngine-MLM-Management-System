@@ -18,7 +18,6 @@
 
 <body>
     @include('admin.partials.sidebar')
-
     <div class="main-wrapper">
         @include('admin.partials.topbar')
 

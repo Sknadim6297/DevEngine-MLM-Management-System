@@ -33,6 +33,23 @@ class AdminAuthTest extends TestCase
         $this->assertAuthenticatedAs(User::first());
     }
 
+    public function test_admin_can_login_with_default_member_id(): void
+    {
+        $admin = User::factory()->create([
+            'name' => 'Admin',
+            'email' => 'admin@gmail.com',
+            'password' => bcrypt('admin123'),
+            'is_admin' => true,
+        ]);
+
+        $this->post('/admin/login', [
+            'member_id' => 'ST666666',
+            'password' => 'admin123',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($admin);
+    }
+
     public function test_wrong_password_shows_validation_error(): void
     {
         User::factory()->create([

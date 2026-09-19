@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
+use App\Models\Investment;
+use App\Models\InvestmentWithdrawal;
+use App\Models\LevelCommissionTransaction;
+use App\Models\RoiTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -127,6 +131,72 @@ class MemberController extends Controller
     public function inactive()
     {
         return $this->memberList(request(), 'inactive', 'admin.members.inactive');
+    }
+
+    public function memberPanel(string $memberId, Request $request)
+    {
+        $member = Member::where('member_id', $memberId)->firstOrFail();
+
+        $totalInvestment = (float) Investment::where('member_id', $member->member_id)->sum('amount');
+        $activeInvestment = (float) Investment::where('member_id', $member->member_id)
+            ->where('status', 'active')
+            ->sum('amount');
+        $withdrawnAmount = (float) InvestmentWithdrawal::where('member_id', $member->member_id)
+            ->sum('withdrawal_amount');
+        $teamMemberIds = $this->descendantMemberIds($member->member_id);
+        $teamActiveInvestment = (float) Investment::whereIn('member_id', $teamMemberIds)
+            ->where('status', 'active')
+            ->sum('amount');
+        $teamInactiveInvestment = (float) Investment::whereIn('member_id', $teamMemberIds)
+            ->where('status', 'active')
+            ->whereHas('member', fn ($query) => $query->where('status', 'inactive'))
+            ->sum('amount');
+
+        $request->session()->put('member_context_id', $member->member_id);
+
+        return view('member.dashboard', [
+            'member' => $member,
+            'metrics' => [
+                'totalInvestment' => $totalInvestment,
+                'activeInvestment' => $activeInvestment,
+                'remainingBalance' => max(0, $totalInvestment - $withdrawnAmount),
+                'roiWallet' => (float) $member->roi_wallet_amount,
+                'workingWallet' => (float) $member->working_wallet_amount,
+                'salaryWallet' => (float) ($member->salary_wallet_amount ?? 0),
+                'activationWallet' => (float) $member->activation_wallet_amount,
+                'roiIncome' => (float) RoiTransaction::where('member_id', $member->member_id)->sum('income_amount'),
+                'levelIncome' => (float) LevelCommissionTransaction::where('member_id', $member->member_id)->sum('income_amount'),
+                'salaryIncome' => 0,
+                'activeMembers' => Member::where('sponsor_id', $member->member_id)->where('status', 'active')->count(),
+                'inactiveMembers' => Member::where('sponsor_id', $member->member_id)->where('status', 'inactive')->count(),
+                'rank' => data_get($member, 'rank', 'N/A'),
+                'teamActiveInvestment' => $teamActiveInvestment,
+                'teamInactiveInvestment' => $teamInactiveInvestment,
+                'teamActiveInvestmentRatio' => $teamActiveInvestment . ':'. $teamInactiveInvestment,
+                'totalWithdrawal' => $withdrawnAmount,
+                'referralUrl' => url('/admin/login?ref=' . urlencode($member->member_id)),
+            ],
+        ]);
+    }
+
+    protected function descendantMemberIds(string $memberId): array
+    {
+        $ids = [];
+        $pending = [$memberId];
+
+        while ($pending !== []) {
+            $children = Member::whereIn('sponsor_id', $pending)->pluck('member_id')->all();
+            $children = array_values(array_diff($children, $ids, [$memberId]));
+
+            if ($children === []) {
+                break;
+            }
+
+            $ids = array_merge($ids, $children);
+            $pending = $children;
+        }
+
+        return $ids === [] ? [$memberId] : array_merge([$memberId], $ids);
     }
 
     protected function memberList(Request $request, string $status, string $view)

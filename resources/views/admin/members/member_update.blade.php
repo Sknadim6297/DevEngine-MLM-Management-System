@@ -180,6 +180,7 @@
         let sponsorValidationTimer = null;
         let fetchedMemberId = null;
         let sponsorIdValid = false;
+        let validatedSponsorId = '';
 
         function setError(fieldName, message = '') {
             let error = document.querySelector('[data-error-for="' + fieldName + '"]');
@@ -311,6 +312,7 @@
                     sponsorNameInput.value = '';
                 }
                 sponsorIdValid = false;
+                validatedSponsorId = '';
                 return false;
             }
 
@@ -318,12 +320,19 @@
                 sponsorNameInput.value = 'Admin';
                 setError('sponsor_id');
                 sponsorIdValid = true;
+                validatedSponsorId = sponsorId.toUpperCase();
+                return true;
+            }
+
+            if (sponsorIdValid && validatedSponsorId === sponsorId.toUpperCase()) {
+                setError('sponsor_id');
                 return true;
             }
 
             const requestId = Date.now();
             sponsorValidationTimer = requestId;
             sponsorIdValid = false;
+            validatedSponsorId = '';
             setError('sponsor_id');
 
             fetch('{{ route('admin.members.check-sponsor-id') }}?sponsor_id=' + encodeURIComponent(sponsorId), {
@@ -339,16 +348,19 @@
                         sponsorNameInput.value = data.sponsor_name || '';
                         setError('sponsor_id');
                         sponsorIdValid = true;
+                        validatedSponsorId = sponsorId.toUpperCase();
                     } else {
                         sponsorNameInput.value = '';
                         setError('sponsor_id', data.message || 'Invalid Sponsor ID.');
                         sponsorIdValid = false;
+                        validatedSponsorId = '';
                     }
                 })
                 .catch(() => {
                     if (sponsorValidationTimer === requestId) {
                         setError('sponsor_id', 'Invalid Sponsor ID.');
                         sponsorIdValid = false;
+                        validatedSponsorId = '';
                     }
                 });
 
@@ -506,6 +518,9 @@
                 return;
             }
 
+            const sponsorId = sponsorIdInput.value.trim().toUpperCase();
+            const sponsorAlreadyValidated = sponsorIdValid && validatedSponsorId === sponsorId;
+
             markTouched('member_name');
             markTouched('sponsor_id');
             markTouched('email');
@@ -513,7 +528,7 @@
             markTouched('pan_card_no');
 
             const isValid = validateMemberName(true)
-                && (validateSponsorId(true) && sponsorIdValid)
+                && (sponsorAlreadyValidated || validateSponsorId(true))
                 && validateEmail(true)
                 && validateMobileNo(true)
                 && validatePanCard(true)

@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\MemberController;
@@ -12,11 +13,17 @@ use App\Http\Controllers\genealogyController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LevelCommissionController;
+use App\Models\Member;
+use App\Models\User;
 
 
 Route::get('/', function () {
     if (Auth::check()) {
         return redirect('/dashboard');
+    }
+
+    if (session()->has('member_context_id')) {
+        return redirect()->route('member.dashboard');
     }
 
     return redirect('/admin/login');
@@ -34,6 +41,10 @@ Route::get('/admin/login', function () {
         return redirect('/dashboard');
     }
 
+    if (session()->has('member_context_id')) {
+        return redirect()->route('member.dashboard');
+    }
+
     return view('admin.login.login');
 })->name('login');
 
@@ -41,29 +52,56 @@ Route::get('/admin/login', function () {
 Route::post('/admin/login', function (Request $request) {
 
     $credentials = $request->validate([
-        'email' => ['required', 'email'],
+        'member_id' => ['required_without:email', 'nullable', 'string'],
+        'email' => ['required_without:member_id', 'nullable', 'email'],
         'password' => ['required', 'string'],
     ]);
+
+    $memberId = trim($credentials['member_id'] ?? $credentials['email']);
+
+    $member = Member::where('member_id', $memberId)
+        ->where('status', 'active')
+        ->first();
+
+    if ($member && $member->password && Hash::check($credentials['password'], $member->password)) {
+        $request->session()->regenerate();
+        $request->session()->put('member_context_id', $member->member_id);
+
+        return redirect()->intended(route('member.dashboard'));
+    }
+
+    if (strtoupper($memberId) === 'ST666666') {
+        $admin = User::where('is_admin', true)->first();
+
+        if ($admin && Hash::check($credentials['password'], $admin->password)) {
+            Auth::login($admin, $request->boolean('remember'));
+            $request->session()->regenerate();
+            $request->session()->forget('member_context_id');
+
+            return redirect()->intended('/dashboard');
+        }
+    }
 
     if (
         Auth::attempt(
             [
-                'email' => $credentials['email'],
+                'email' => $memberId,
                 'password' => $credentials['password'],
             ],
             $request->boolean('remember')
         )
     ) {
         $request->session()->regenerate();
+        $request->session()->forget('member_context_id');
 
         return redirect()->intended('/dashboard');
     }
 
     return back()
         ->withErrors([
-            'email' => 'Invalid email or password.',
+            $request->filled('member_id') ? 'member_id' : 'email' => 'Invalid Member ID or password.',
         ])
-        ->onlyInput('email');
+        ->onlyInput($request->filled('member_id') ? 'member_id' : 'email');
 
 })->middleware('throttle:5,1')->name('login.submit');
 
@@ -76,13 +114,18 @@ Route::post('/admin/login', function (Request $request) {
 
 Route::middleware(['auth', 'admin'])->group(function () {
 
+    Route::get('/member-panel/{member_id}', [MemberController::class, 'memberPanel'])
+        ->name('admin.member-panel');
+
     /*
     |--------------------------------------------------------------------------
     | Dashboard
     |--------------------------------------------------------------------------
     */
 
-    Route::get('/dashboard', function () {
+    Route::get('/dashboard', function (Request $request) {
+        $request->session()->forget('member_context_id');
+
         return view('admin.dashboard.index', [
             'activationWalletTotal' => (float) \App\Models\Member::sum('activation_wallet_amount'),
             'workingWalletTotal' => (float) \App\Models\Member::sum('working_wallet_amount'),
@@ -408,4 +451,21 @@ Route::middleware(['auth', 'admin'])->group(function () {
         });
     
     
+});
+
+Route::middleware('member.context')->group(function () {
+    Route::get('/member/dashboard', function (Request $request) {
+        $member = Member::where('member_id', $request->session()->get('member_context_id'))->firstOrFail();
+
+        return app(MemberController::class)->memberPanel($member->member_id, $request);
+    })->name('member.dashboard');
+
+    Route::post('/member/logout', function (Request $request) {
+        $isAdminPreview = $request->user()?->is_admin === true;
+        $request->session()->forget('member_context_id');
+
+        return $isAdminPreview
+            ? redirect()->route('dashboard')
+            : redirect()->route('login');
+    })->name('member.logout');
 });
