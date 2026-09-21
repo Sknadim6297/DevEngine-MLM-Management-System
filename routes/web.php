@@ -407,6 +407,10 @@ Route::middleware(['auth', 'admin'])->group(function () {
                 'index'
             )->name('tree-view');
             Route::get(
+                '/search-members',
+                'searchMembers'
+            )->name('search-members');
+            Route::get(
                 '/level-view',
                 'levelView'
             )->name('level-view');
@@ -504,6 +508,12 @@ Route::middleware('member.context')->group(function () {
             Route::get('/level-view', 'levelView')->name('level-view');
             Route::get('/level-view/members', 'levelMembers')->name('level-view.members');
         });
+
+    Route::get('/member/search-members', [MemberController::class, 'searchMembers'])
+        ->name('member.search-members');
+
+    Route::get('/member/lookup-member', [MemberController::class, 'lookupMember'])
+        ->name('member.lookup-member');
 
     Route::controller(MemberReportController::class)
         ->prefix('member/reports')

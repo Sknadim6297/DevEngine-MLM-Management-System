@@ -24,7 +24,7 @@
 
             <div class="col-md-6 mb-3">
                 <label>Member ID</label>
-                <input type="text" id="withdrawalMemberId" name="member_id" value="{{ old('member_id') }}" class="form-control" placeholder="Enter Member ID" required>
+                <input type="text" id="withdrawalMemberId" name="member_id" value="{{ old('member_id') }}" class="form-control" placeholder="Enter Member ID" required data-member-autocomplete autocomplete="off">
                 <div class="text-danger mt-1 small validation-message" data-error-for="member_id"></div>
             </div>
 
@@ -142,7 +142,7 @@
                 return;
             }
 
-            fetch('{{ route('admin.investments.member-lookup') }}?member_id=' + encodeURIComponent(memberId), {
+            fetch('{{ route('member.lookup-member') }}?member_id=' + encodeURIComponent(memberId), {
                 headers: { 'Accept': 'application/json' }
             }).then(function (response) {
                 return response.json().then(function (data) {

@@ -17,12 +17,15 @@ class MemberGenealogyTest extends TestCase
         $otherRoot = $this->member('ST100003', 'Other Root', 'ST666666');
         $this->memberSession($member);
 
-        $this->get(route('member.genealogy.tree-view', ['member_id' => $otherRoot->member_id]))
-            ->assertOk()
+        $response = $this->get(route('member.genealogy.tree-view', ['member_id' => $otherRoot->member_id]));
+
+        $response->assertOk()
             ->assertSeeText($member->member_id)
             ->assertSeeText($child->member_id)
-            ->assertDontSeeText($otherRoot->member_id)
-            ->assertSee('readonly', false);
+            ->assertDontSeeText($otherRoot->member_id);
+
+        $this->assertStringNotContainsString('id="memberTreeId" readonly', $response->getContent());
+        $this->assertStringContainsString('id="memberTreeId"', $response->getContent());
     }
 
     public function test_member_level_results_only_include_authenticated_members_downline(): void
@@ -55,6 +58,21 @@ class MemberGenealogyTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonFragment(['member_id' => $child->member_id, 'level' => 1]);
+    }
+
+    public function test_member_tree_view_allows_searching_authorized_downline_member(): void
+    {
+        $member = $this->member('ST100012', 'Root Member', 'ST666666');
+        $child = $this->member('ST100013', 'Child Member', $member->member_id);
+        $otherRoot = $this->member('ST100014', 'Other Root', 'ST666666');
+        $this->member('ST100015', 'Other Child', $otherRoot->member_id);
+        $this->memberSession($member);
+
+        $this->get(route('member.genealogy.tree-view', ['member_id' => $child->member_id]))
+            ->assertOk()
+            ->assertSeeText($child->member_id)
+            ->assertSeeText($child->member_name)
+            ->assertDontSeeText($otherRoot->member_id);
     }
 
     public function test_member_genealogy_routes_require_member_context(): void

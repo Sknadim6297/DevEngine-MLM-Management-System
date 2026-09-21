@@ -26,6 +26,10 @@ class LevelCommissionGenerationService
 
     public function generateForInvestment(Investment $investment, ?CarbonImmutable $businessDate = null): array
     {
+        if ($investment->status !== 'active') {
+            return ['generated' => 0, 'skipped' => 0];
+        }
+
         $businessDate ??= CarbonImmutable::now('Asia/Kolkata')->startOfDay();
         $result = ['generated' => 0, 'skipped' => 0];
 

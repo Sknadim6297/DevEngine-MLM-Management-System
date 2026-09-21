@@ -141,4 +141,20 @@ class TreeViewTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.member_id', 'ST100004');
     }
+
+    public function test_admin_tree_view_uses_member_autocomplete_suggestions(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $this->seedMembers();
+
+        $this->get(route('admin.genealogy.tree-view'))
+            ->assertOk()
+            ->assertSee('data-member-autocomplete')
+            ->assertSee('member-autocomplete-list');
+
+        $this->getJson(route('admin.genealogy.search-members', ['member_id' => 'ST10000']))
+            ->assertOk()
+            ->assertJsonFragment(['member_id' => 'ST100001'])
+            ->assertJsonFragment(['member_name' => 'SK ABU SALEH']);
+    }
 }

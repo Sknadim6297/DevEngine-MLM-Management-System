@@ -23,7 +23,7 @@
             <form method="GET" action="{{ $view === 'direct' ? route('member.team.direct') : route('member.team.whole') }}" class="row align-items-end mb-4">
                 <div class="col-md-4 mb-3 mb-md-0">
                     <label>Member ID</label>
-                    <input type="text" name="member_id" value="{{ $memberId }}" class="form-control" placeholder="Enter Member ID">
+                    <input type="text" name="member_id" value="{{ $memberId }}" class="form-control" placeholder="Enter Member ID" data-member-autocomplete autocomplete="off">
                 </div>
                 <div class="col-md-4 mb-3 mb-md-0">
                     <label>Member Name</label>

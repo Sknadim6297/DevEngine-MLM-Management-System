@@ -30,7 +30,7 @@
 
                     <div class="col-md-6 mb-3">
                         <label>Sponsor ID <span class="text-danger">*</span></label>
-                        <input type="text" name="sponsor_id" class="form-control" placeholder="Enter Sponsor ID" value="{{ old('sponsor_id', $default_sponsor_id ?? 'ST666666') }}" required>
+                        <input type="text" name="sponsor_id" class="form-control" placeholder="Enter Sponsor ID" value="{{ old('sponsor_id', $default_sponsor_id ?? 'ST666666') }}" required data-member-autocomplete autocomplete="off">
                         <div class="text-danger mt-1 small validation-message" data-error-for="sponsor_id">
                             @error('sponsor_id'){{ $message }}@enderror
                         </div>

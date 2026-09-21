@@ -48,6 +48,10 @@ class RoiGenerationService
                     return 'skipped';
                 }
 
+                if ($investment->status === 'expired') {
+                    return 'skipped';
+                }
+
                 $investmentDate = CarbonImmutable::instance($investment->created_at)
                     ->setTimezone(self::TIMEZONE)
                     ->startOfDay();

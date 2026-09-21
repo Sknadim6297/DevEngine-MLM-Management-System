@@ -134,6 +134,64 @@ class MemberController extends Controller
         return $this->memberList(request(), 'inactive', 'admin.members.inactive');
     }
 
+    public function searchMembers(Request $request)
+    {
+        $member = Member::where('member_id', $request->session()->get('member_context_id'))->firstOrFail();
+        $term = trim((string) $request->query('member_id', ''));
+
+        if ($term === '') {
+            return response()->json([]);
+        }
+
+        $authorizedIds = Member::authorizedMemberIds($member->member_id);
+
+        $results = Member::query()
+            ->whereIn('member_id', $authorizedIds)
+            ->where(function ($query) use ($term) {
+                $query->where('member_id', 'like', '%' . $term . '%')
+                    ->orWhere('member_name', 'like', '%' . $term . '%');
+            })
+            ->select(['member_id', 'member_name', 'status'])
+            ->orderBy('member_id')
+            ->limit(10)
+            ->get()
+            ->map(fn (Member $item) => [
+                'member_id' => $item->member_id,
+                'member_name' => $item->member_name,
+                'status' => $item->status,
+            ])
+            ->values()
+            ->all();
+
+        return response()->json($results);
+    }
+
+    public function lookupMember(Request $request)
+    {
+        $member = Member::where('member_id', $request->session()->get('member_context_id'))->firstOrFail();
+        $requestedMemberId = trim((string) $request->query('member_id', ''));
+
+        if ($requestedMemberId === '') {
+            return response()->json(['message' => 'Member ID is required.'], 422);
+        }
+
+        $authorizedIds = Member::authorizedMemberIds($member->member_id);
+        $target = Member::query()
+            ->whereIn('member_id', $authorizedIds)
+            ->where('member_id', $requestedMemberId)
+            ->first();
+
+        if (! $target) {
+            return response()->json(['message' => 'The selected member id is invalid.'], 404);
+        }
+
+        return response()->json([
+            'member_id' => $target->member_id,
+            'member_name' => $target->member_name,
+            'status' => $target->status,
+        ]);
+    }
+
     public function memberPanel(string $memberId, Request $request)
     {
         $member = Member::where('member_id', $memberId)->firstOrFail();

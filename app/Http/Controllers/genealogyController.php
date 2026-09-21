@@ -34,6 +34,34 @@ class genealogyController extends Controller
         ]);
     }
 
+    public function searchMembers(Request $request)
+    {
+        $term = trim((string) $request->query('member_id', ''));
+
+        if ($term === '') {
+            return response()->json([]);
+        }
+
+        $results = Member::query()
+            ->where(function ($query) use ($term) {
+                $query->where('member_id', 'like', '%' . $term . '%')
+                    ->orWhere('member_name', 'like', '%' . $term . '%');
+            })
+            ->select(['member_id', 'member_name', 'status'])
+            ->orderBy('member_id')
+            ->limit(10)
+            ->get()
+            ->map(fn (Member $member) => [
+                'member_id' => $member->member_id,
+                'member_name' => $member->member_name,
+                'status' => $member->status,
+            ])
+            ->values()
+            ->all();
+
+        return response()->json($results);
+    }
+
     public function levelView(Request $request)
     {
         return view('admin.genealogy.level-view');

@@ -25,7 +25,8 @@
                            name="member_id"
                            value="{{ $selectedMemberId ?? '' }}"
                            placeholder="Enter Member ID"
-                           readonly>
+                           data-member-autocomplete
+                           autocomplete="off">
                 </form>
             </div>
 

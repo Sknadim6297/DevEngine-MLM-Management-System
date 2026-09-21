@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -29,6 +30,7 @@ class NewMemberRegistrationController extends Controller
 
     public function checkSponsor(Request $request): JsonResponse
     {
+        $currentMember = $this->currentMember($request);
         $sponsorId = strtoupper(trim((string) $request->query('sponsor_id', '')));
 
         if ($sponsorId === '') {
@@ -38,12 +40,16 @@ class NewMemberRegistrationController extends Controller
             ]);
         }
 
-        $sponsor = Member::where('member_id', $sponsorId)->first();
+        $authorizedIds = Member::authorizedMemberIds($currentMember->member_id);
+        $sponsor = Member::query()
+            ->whereIn('member_id', $authorizedIds)
+            ->where('member_id', $sponsorId)
+            ->first();
 
         return response()->json([
             'exists' => $sponsor !== null,
             'sponsor_name' => $sponsor?->member_name,
-            'message' => $sponsor ? 'Sponsor ID is valid.' : 'Invalid Sponsor ID.',
+            'message' => $sponsor ? 'Sponsor ID is valid.' : 'Unauthorized sponsor ID.',
         ]);
     }
 
@@ -56,11 +62,16 @@ class NewMemberRegistrationController extends Controller
             'mobile_no' => trim((string) $request->input('mobile_no')),
         ]);
 
+        $currentMember = $this->currentMember($request);
+        $authorizedIds = Member::authorizedMemberIds($currentMember->member_id);
+
         $validated = $request->validate([
             'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
-            'sponsor_id' => ['required', 'string', 'exists:members,member_id'],
+            'sponsor_id' => ['required', 'string', Rule::in($authorizedIds)],
             'email' => ['required', 'email', 'unique:members,email'],
             'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
+        ], [
+            'sponsor_id.in' => 'Unauthorized sponsor ID.',
         ]);
 
         $sponsor = Member::where('member_id', $validated['sponsor_id'])->first();

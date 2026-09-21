@@ -12,12 +12,27 @@ class GenealogyController extends Controller
 {
     public function treeView(Request $request): View
     {
-        $member = $this->currentMember($request);
+        $rootMember = $this->currentMember($request);
+        $selectedMemberId = strtoupper(trim((string) $request->query('member_id', '')));
+
+        if ($selectedMemberId !== '') {
+            $authorizedIds = Member::authorizedMemberIds($rootMember->member_id);
+            $selectedMember = Member::query()
+                ->whereIn('member_id', $authorizedIds)
+                ->where('member_id', $selectedMemberId)
+                ->first();
+
+            if ($selectedMember === null) {
+                $selectedMember = $rootMember;
+            }
+        } else {
+            $selectedMember = $rootMember;
+        }
 
         return view('member.genealogy.tree-view', [
-            'member' => $member,
-            'tree' => [$this->buildTreeNode($member)],
-            'selectedMemberId' => $member->member_id,
+            'member' => $rootMember,
+            'tree' => [$this->buildTreeNode($selectedMember)],
+            'selectedMemberId' => $selectedMember->member_id,
             'memberNotFound' => false,
         ]);
     }

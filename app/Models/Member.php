@@ -52,4 +52,28 @@ class Member extends Model
     {
         return $this->hasMany(RoiTransaction::class, 'member_id', 'member_id');
     }
+
+    public static function authorizedMemberIds(string $rootMemberId): array
+    {
+        $authorizedIds = [$rootMemberId];
+        $pending = [$rootMemberId];
+
+        while ($pending !== []) {
+            $children = self::query()
+                ->whereIn('sponsor_id', $pending)
+                ->pluck('member_id')
+                ->all();
+
+            $children = array_values(array_diff($children, $authorizedIds));
+
+            if ($children === []) {
+                break;
+            }
+
+            $authorizedIds = array_merge($authorizedIds, $children);
+            $pending = $children;
+        }
+
+        return $authorizedIds;
+    }
 }

@@ -24,7 +24,9 @@
                            id="memberTreeId"
                            name="member_id"
                            value="{{ $selectedMemberId ?? '' }}"
-                           placeholder="Enter Member ID">
+                           placeholder="Enter Member ID"
+                           data-member-autocomplete
+                           autocomplete="off">
                 </form>
             </div>
 
