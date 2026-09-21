@@ -18,6 +18,7 @@ use App\Http\Controllers\Member\ProfileController;
 use App\Http\Controllers\Member\TeamController;
 use App\Http\Controllers\Member\InvestController;
 use App\Http\Controllers\Member\ReportController as MemberReportController;
+use App\Http\Controllers\Member\GenealogyController as MemberGenealogyController;
 use App\Http\Controllers\PublicMemberAuthController;
 use App\Models\Member;
 use App\Models\User;
@@ -495,6 +496,15 @@ Route::middleware(['auth', 'admin'])->group(function () {
 });
 
 Route::middleware('member.context')->group(function () {
+    Route::controller(MemberGenealogyController::class)
+        ->prefix('member/genealogy')
+        ->name('member.genealogy.')
+        ->group(function () {
+            Route::get('/tree-view', 'treeView')->name('tree-view');
+            Route::get('/level-view', 'levelView')->name('level-view');
+            Route::get('/level-view/members', 'levelMembers')->name('level-view.members');
+        });
+
     Route::controller(MemberReportController::class)
         ->prefix('member/reports')
         ->name('member.reports.')

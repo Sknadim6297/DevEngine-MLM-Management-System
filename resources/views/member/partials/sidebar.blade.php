@@ -42,6 +42,28 @@
             </a>
 
         </div>
+              <a href="#genealogyMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
+            aria-controls="genealogyMenu">
+
+            <i class="bi bi-layers"></i>
+            <span>Genealogy</span>
+
+            <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
+        </a>
+
+        <div class="collapse submenu" id="genealogyMenu">
+
+            <a href="{{ route('member.genealogy.tree-view') }}">
+                <i class="bi bi-diagram-3"></i>
+                <span>Tree View</span>
+            </a>
+
+            <a href="{{ route('member.genealogy.level-view') }}">
+                <i class="bi bi-people"></i>
+                <span>Level View</span>
+            </a>
+
+        </div>
 
         <a href="#investmentMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
             aria-controls="investmentMenu">
