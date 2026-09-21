@@ -43,18 +43,32 @@
 
         </div>
 
-        <a href="#genealogyMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
-            aria-controls="genealogyMenu">
-            <i class="bi bi-diagram-3"></i>
-            <span>Genealogy</span>
+        <a href="#investmentMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
+            aria-controls="investmentMenu">
+
+            <i class="bi bi-pencil-square"></i>
+            <span>Investment</span>
+
             <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
         </a>
 
-        <div class="collapse submenu" id="genealogyMenu">
-            <a href="{{ route('member.dashboard') }}#genealogy">
-                <i class="bi bi-diagram-3"></i>
-                <span>Network Overview</span>
+        <div class="collapse submenu" id="investmentMenu">
+
+            <a href="{{ route('member.investments.entry') }}">
+                <i class="bi bi-plus-circle"></i>
+                <span>Investment Entry</span>
             </a>
+
+            <a href="{{ route('member.investments.active') }}">
+                <i class="bi bi-list-ul"></i>
+                <span>Active Investment List</span>
+            </a>
+
+            <a href="{{ route('member.investments.closed') }}">
+                <i class="bi bi-cash-stack"></i>
+                <span>Closed Investment List</span>
+            </a>
+
         </div>
 
         <a href="#walletMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
@@ -83,22 +97,37 @@
             </a>
         </div>
 
-        <a href="#activityMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
-            aria-controls="activityMenu">
-            <i class="bi bi-bar-chart"></i>
-            <span>Activity</span>
+              <a href="#reportsMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
+            aria-controls="reportsMenu">
+
+            <i class="bi bi-search"></i>
+            <span>Reports</span>
+
             <i class="bi bi-chevron-down ms-auto submenu-arrow"></i>
         </a>
 
-        <div class="collapse submenu" id="activityMenu">
-            <a href="{{ route('member.dashboard') }}#investment">
+        <div class="collapse submenu" id="reportsMenu">
+
+            <a href="{{ route('admin.report.roi-report') }}">
+                <i class="bi bi-person-lines-fill"></i>
+                <span>ROI</span>
+            </a>
+
+            <a href="{{ route('admin.report.level-income') }}">
+                <i class="bi bi-wallet2"></i>
+                <span>Level Income</span>
+            </a>
+
+            <a href="{{ route('admin.report.salary') }}">
+                <i class="bi bi-cash-stack"></i>
+                <span>Salary</span>
+            </a>
+
+            <a href="{{ route('admin.report.rank-achievement') }}">
                 <i class="bi bi-bar-chart"></i>
-                <span>Investment</span>
+                <span>Rank Achievement Report</span>
             </a>
-            <a href="{{ route('member.dashboard') }}#reports">
-                <i class="bi bi-file-earmark-text"></i>
-                <span>Reports</span>
-            </a>
+
         </div>
 
         <a href="{{ route('member.dashboard') }}#support">

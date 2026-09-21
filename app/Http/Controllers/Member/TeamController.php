@@ -12,24 +12,32 @@ class TeamController extends Controller
     public function direct(Request $request): View
     {
         $team = $this->buildTeam($request);
+        $directMembers = collect($team['members'])->where('level', 1)->values();
 
         return view('member.team.index', [
             'member' => $team['member'],
-            'directMembers' => collect($team['members'])->where('level', 1)->values(),
+            'directMembers' => $directMembers,
             'wholeTeam' => collect($team['members']),
+            'filteredMembers' => $this->filterMembers($directMembers, $request),
             'view' => 'direct',
+            'memberId' => trim((string) $request->query('member_id', '')),
+            'memberName' => trim((string) $request->query('member_name', '')),
         ]);
     }
 
     public function whole(Request $request): View
     {
         $team = $this->buildTeam($request);
+        $wholeTeam = collect($team['members']);
 
         return view('member.team.index', [
             'member' => $team['member'],
-            'directMembers' => collect($team['members'])->where('level', 1)->values(),
-            'wholeTeam' => collect($team['members']),
+            'directMembers' => $wholeTeam->where('level', 1)->values(),
+            'wholeTeam' => $wholeTeam,
+            'filteredMembers' => $this->filterMembers($wholeTeam, $request),
             'view' => 'whole',
+            'memberId' => trim((string) $request->query('member_id', '')),
+            'memberName' => trim((string) $request->query('member_name', '')),
         ]);
     }
 
@@ -74,5 +82,16 @@ class TeamController extends Controller
             'member' => $root,
             'members' => $team,
         ];
+    }
+
+    private function filterMembers(\Illuminate\Support\Collection $members, Request $request): \Illuminate\Support\Collection
+    {
+        $memberId = trim((string) $request->query('member_id', ''));
+        $memberName = trim((string) $request->query('member_name', ''));
+
+        return $members->filter(function (array $member) use ($memberId, $memberName) {
+            return ($memberId === '' || str_contains(strtolower($member['member_id']), strtolower($memberId)))
+                && ($memberName === '' || str_contains(strtolower($member['member_name']), strtolower($memberName)));
+        })->values();
     }
 }

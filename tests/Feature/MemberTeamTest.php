@@ -60,11 +60,31 @@ class MemberTeamTest extends TestCase
         $this->createMember('ST100011', 'Other Child', $otherRoot->member_id, 'active');
         $this->memberSession($root);
 
-        $this->get(route('member.team.whole', ['member_id' => $otherRoot->member_id]))
+        $this->get(route('member.team.whole', ['root_member_id' => $otherRoot->member_id]))
             ->assertOk()
             ->assertSeeText('Root Child')
             ->assertDontSeeText('Other Root')
             ->assertDontSeeText('Other Child');
+    }
+
+    public function test_direct_and_whole_team_can_be_filtered_by_member_id_or_name(): void
+    {
+        $root = $this->createMember('ST100001', 'Root Member', 'ST666666', 'active');
+        $direct = $this->createMember('ST100002', 'Direct Searchable', $root->member_id, 'active');
+        $nested = $this->createMember('ST100003', 'Nested Searchable', $direct->member_id, 'inactive');
+        $unrelated = $this->createMember('ST100010', 'Unrelated Searchable', 'ST666666', 'active');
+        $this->memberSession($root);
+
+        $this->get(route('member.team.direct', ['member_id' => $direct->member_id]))
+            ->assertOk()
+            ->assertSeeText('Direct Searchable')
+            ->assertDontSeeText('Nested Searchable');
+
+        $this->get(route('member.team.whole', ['member_name' => 'Nested Searchable']))
+            ->assertOk()
+            ->assertSeeText('Nested Searchable')
+            ->assertDontSeeText('Direct Searchable')
+            ->assertDontSeeText($unrelated->member_name);
     }
 
     public function test_counts_include_inactive_descendants_and_admin_sponsor_is_not_a_member(): void

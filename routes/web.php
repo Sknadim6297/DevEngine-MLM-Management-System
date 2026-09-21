@@ -16,6 +16,7 @@ use App\Http\Controllers\LevelCommissionController;
 use App\Http\Controllers\Member\NewMemberRegistrationController;
 use App\Http\Controllers\Member\ProfileController;
 use App\Http\Controllers\Member\TeamController;
+use App\Http\Controllers\Member\InvestController;
 use App\Http\Controllers\PublicMemberAuthController;
 use App\Models\Member;
 use App\Models\User;
@@ -493,6 +494,16 @@ Route::middleware(['auth', 'admin'])->group(function () {
 });
 
 Route::middleware('member.context')->group(function () {
+    Route::controller(InvestController::class)
+        ->prefix('member/investments')
+        ->name('member.investments.')
+        ->group(function () {
+            Route::get('/entry', 'entry')->name('entry');
+            Route::post('/entry', 'store')->name('store');
+            Route::get('/active', 'active')->name('active');
+            Route::get('/closed', 'closed')->name('closed');
+        });
+
     Route::get('/member/profile', [ProfileController::class, 'show'])
         ->name('member.profile');
 

@@ -20,20 +20,24 @@
                 </div>
             </div>
 
-            <div class="row g-3 mb-4">
-                <div class="col-sm-6">
-                    <div class="summary-card card-blue h-100">
-                        <div class="summary-number">{{ $directMembers->count() }}</div>
-                        <div class="summary-name">Direct Members</div>
-                    </div>
+            <form method="GET" action="{{ $view === 'direct' ? route('member.team.direct') : route('member.team.whole') }}" class="row align-items-end mb-4">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <label>Member ID</label>
+                    <input type="text" name="member_id" value="{{ $memberId }}" class="form-control" placeholder="Enter Member ID">
                 </div>
-                <div class="col-sm-6">
-                    <div class="summary-card card-purple h-100">
-                        <div class="summary-number">{{ $wholeTeam->count() }}</div>
-                        <div class="summary-name">Whole Team</div>
-                    </div>
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <label>Member Name</label>
+                    <input type="text" name="member_name" value="{{ $memberName }}" class="form-control" placeholder="Enter Member Name">
                 </div>
-            </div>
+                <div class="col-md-2 mb-3 mb-md-0">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ $view === 'direct' ? route('member.team.direct') : route('member.team.whole') }}" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </form>
 
             <div class="table-responsive">
                 <table class="table table-bordered table-hover member-table align-middle">
@@ -52,8 +56,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php($members = $view === 'direct' ? $directMembers : $wholeTeam)
-                        @forelse ($members as $teamMember)
+                        @forelse ($filteredMembers as $teamMember)
                             <tr>
                                 @if ($view === 'whole')
                                     <td>Level {{ $teamMember['level'] }}</td>
