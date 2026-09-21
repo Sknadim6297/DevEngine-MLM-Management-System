@@ -17,6 +17,7 @@ use App\Http\Controllers\Member\NewMemberRegistrationController;
 use App\Http\Controllers\Member\ProfileController;
 use App\Http\Controllers\Member\TeamController;
 use App\Http\Controllers\Member\InvestController;
+use App\Http\Controllers\Member\ReportController as MemberReportController;
 use App\Http\Controllers\PublicMemberAuthController;
 use App\Models\Member;
 use App\Models\User;
@@ -494,6 +495,16 @@ Route::middleware(['auth', 'admin'])->group(function () {
 });
 
 Route::middleware('member.context')->group(function () {
+    Route::controller(MemberReportController::class)
+        ->prefix('member/reports')
+        ->name('member.reports.')
+        ->group(function () {
+            Route::get('/roi', 'roiReport')->name('roi');
+            Route::get('/roi/export', 'exportRoiReport')->name('roi.export');
+            Route::get('/level-income', 'levelIncomeReport')->name('level-income');
+            Route::get('/level-income/export', 'exportLevelIncomeReport')->name('level-income.export');
+        });
+
     Route::controller(InvestController::class)
         ->prefix('member/investments')
         ->name('member.investments.')
@@ -534,13 +545,15 @@ Route::middleware('member.context')->group(function () {
         return app(MemberController::class)->memberPanel($member->member_id, $request);
     })->name('member.dashboard');
 
-   Route::post('/member/logout', function (Request $request) {
-    $isAdminPreview = $request->user()?->is_admin === true;
+   Route::match(['get', 'post'], '/member/logout', function (Request $request) {
+    if ($request->user()?->is_admin === true) {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+    } else {
+        $request->session()->forget('member_context_id');
+    }
 
-    $request->session()->forget('member_context_id');
-
-    return $isAdminPreview
-        ? redirect()->route('admin.login')
-        : redirect()->route('admin.login');
+    return redirect()->route('login');
 })->name('member.logout');
 });

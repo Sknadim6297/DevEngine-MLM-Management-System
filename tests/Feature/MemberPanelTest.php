@@ -71,7 +71,24 @@ class MemberPanelTest extends TestCase
         $this->withSession(['member_context_id' => $member->member_id]);
 
         $this->post(route('member.logout'))
-            ->assertRedirect(route('member.register'));
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_admin_member_panel_logout_for_st100047_clears_preview_and_admin_session(): void
+    {
+        $member = $this->createMember('ST100047', 'Preview Member', 'preview047@example.com');
+        $admin = User::factory()->create(['is_admin' => true]);
+        $this->actingAs($admin);
+
+        $this->get(route('admin.member-panel', ['member_id' => 'ST100047']))
+            ->assertOk();
+
+        $this->post(route('member.logout'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertFalse(session()->has('member_context_id'));
+        $this->assertDatabaseHas('members', ['member_id' => $member->member_id]);
     }
 
     public function test_member_logout_get_request_also_clears_context(): void

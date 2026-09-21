@@ -1,0 +1,163 @@
+@extends('member.layouts.app')
+@section('content')
+
+
+        <main class="dashboard-content">
+
+
+
+    <div class="form-card">
+
+        <!-- TITLE -->
+        <div class="form-title">
+            <h4>Level Commission Report</h4>
+        </div>
+
+
+        <!-- SEARCH AREA -->
+        <form method="GET" action="{{ route('member.reports.level-income') }}" id="levelIncomeReportForm">
+        <div class="row align-items-end">
+
+            <!-- FROM DATE -->
+            <div class="col-md-3 mb-3">
+                <label>From Date</label>
+
+                <input type="date"
+                       name="from_date"
+                       value="{{ request('from_date') }}"
+                       class="form-control">
+            </div>
+
+
+            <!-- TO DATE -->
+            <div class="col-md-3 mb-3">
+                <label>To Date</label>
+
+                <input type="date"
+                       name="to_date"
+                       value="{{ request('to_date') }}"
+                       class="form-control">
+            </div>
+
+
+            <!-- LEVEL -->
+            <div class="col-md-2 mb-3">
+                <label>Level</label>
+
+                <select name="level" class="form-control">
+                    <option value="">All Levels</option>
+                    @foreach ($levels as $level)
+                        <option value="{{ $level }}" @selected((string) request('level') === (string) $level)>Level {{ $level }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+        </div>
+
+
+        <!-- BUTTONS -->
+        <div class="d-flex justify-content-end gap-2 mb-4">
+
+            <button type="button"
+                    class="btn btn-primary"
+                    onclick="window.location.href='{{ route('member.reports.level-income.export') }}?' + new URLSearchParams(new FormData(document.getElementById('levelIncomeReportForm'))).toString()">
+
+                <i class="bi bi-file-earmark-excel"></i>
+                Export to Excel
+
+            </button>
+
+
+            <button type="submit"
+                    class="btn btn-primary">
+
+                <i class="bi bi-search"></i>
+                Search
+
+            </button>
+
+
+            <button type="button"
+                    class="btn btn-primary"
+                    onclick="window.location.href='{{ route('member.reports.level-income') }}'">
+
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Reset
+
+            </button>
+
+        </div>
+        </form>
+
+          <div class="col-md-2 mb-3">
+
+                <div class="total-amount-box">
+
+                    <span>Total Amount (USDT)</span>
+
+                    <strong>{{ rtrim(rtrim(number_format((float) $totalAmount, 4, '.', ''), '0'), '.') ?: '0' }}</strong>
+
+                </div>
+
+            </div>
+        <!-- TABLE -->
+        <div class="table-responsive">
+
+            <table class="table table-bordered table-hover member-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Serial No</th>
+                        <th>Income Amount (USDT)</th>
+                        <th>On Amount (USDT)</th>
+                        <th>From Member ID</th>
+                        <th>From Level</th>
+                        <th>Date</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    @forelse ($transactions as $transaction)
+                        <tr>
+                            <td>{{ $transactions->firstItem() + $loop->index }}</td>
+                            <td>{{ rtrim(rtrim(number_format((float) $transaction->income_amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
+                            <td>{{ rtrim(rtrim(number_format((float) $transaction->on_amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
+                            <td>{{ $transaction->from_member_id }}</td>
+                            <td>{{ $transaction->level }}</td>
+                            <td>{{ $transaction->created_at?->format('d-M-Y') }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center">No Record</td>
+                        </tr>
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- PAGINATION -->
+        <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+
+            <nav>
+
+                {{ $transactions->links('pagination::bootstrap-5') }}
+
+            </nav>
+
+        </div>
+
+    </div>
+
+
+       </main>
+@endsection

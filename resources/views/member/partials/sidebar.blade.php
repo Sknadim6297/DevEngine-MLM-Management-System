@@ -108,12 +108,12 @@
 
         <div class="collapse submenu" id="reportsMenu">
 
-            <a href="{{ route('admin.report.roi-report') }}">
+            <a href="{{ route('member.reports.roi') }}">
                 <i class="bi bi-person-lines-fill"></i>
                 <span>ROI</span>
             </a>
 
-            <a href="{{ route('admin.report.level-income') }}">
+            <a href="{{ route('member.reports.level-income') }}">
                 <i class="bi bi-wallet2"></i>
                 <span>Level Income</span>
             </a>
