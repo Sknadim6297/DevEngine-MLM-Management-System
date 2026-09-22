@@ -252,8 +252,25 @@ class RoiGenerationTest extends TestCase
             ]));
 
             $roiResponse->assertOk()
-                ->assertSee('<strong>11</strong>', false);
+                ->assertSee('<strong>11</strong>', false)
+                ->assertDontSee('&laquo;', false)
+                ->assertDontSee('&raquo;', false)
+                ->assertDontSee('«', false)
+                ->assertDontSee('»', false)
+                ->assertSee('>Previous', false)
+                ->assertSee('>Next', false);
             $this->assertSame(1, substr_count($roiResponse->getContent(), 'Showing'));
+            $this->assertSame(1, substr_count($roiResponse->getContent(), '>Previous'));
+            $this->assertSame(1, substr_count($roiResponse->getContent(), '>Next'));
+
+            if ($page === 1) {
+                $this->assertStringContainsString('page-item disabled', $roiResponse->getContent());
+                $this->assertStringContainsString('page=2', $roiResponse->getContent());
+            } else {
+                $this->assertStringContainsString('rel="prev"', $roiResponse->getContent());
+                $this->assertStringContainsString('page=1', $roiResponse->getContent());
+                $this->assertStringContainsString('page-item disabled', $roiResponse->getContent());
+            }
 
             $levelResponse = $this->get(route('admin.report.level-income', [
                 'member_id' => $member->member_id,
