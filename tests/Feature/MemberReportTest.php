@@ -74,6 +74,51 @@ class MemberReportTest extends TestCase
         $this->get(route('member.reports.level-income'))->assertForbidden();
     }
 
+    public function test_all_paginated_member_reports_use_shared_pagination_and_preserve_filters(): void
+    {
+        $member = $this->member('ST100007');
+
+        foreach (range(1, 11) as $index) {
+            $this->roi(
+                $member,
+                'ROI-PAGE-' . $index,
+                'INV-PAGE-' . $index,
+                '1.0000',
+                '2026-09-' . str_pad((string) (($index % 9) + 1), 2, '0', STR_PAD_LEFT)
+            );
+            $this->commission(
+                $member,
+                'LC-PAGE-' . $index,
+                'INV-LC-PAGE-' . $index,
+                1,
+                '2.0000',
+                '2026-09-' . str_pad((string) (($index % 9) + 1), 2, '0', STR_PAD_LEFT)
+            );
+        }
+
+        $this->memberSession($member);
+
+        $this->get(route('member.reports.roi', [
+            'from_date' => '2026-09-01',
+            'page' => 2,
+        ]))->assertOk()
+            ->assertSee('pagination-wrapper', false)
+            ->assertSee('page-item active', false)
+            ->assertSee('from_date=2026-09-01', false)
+            ->assertDontSee('« Previous', false);
+
+        $this->get(route('member.reports.level-income', [
+            'level' => 1,
+            'to_date' => '2026-09-30',
+            'page' => 2,
+        ]))->assertOk()
+            ->assertSee('pagination-wrapper', false)
+            ->assertSee('page-item active', false)
+            ->assertSee('level=1', false)
+            ->assertSee('to_date=2026-09-30', false)
+            ->assertDontSee('« Previous', false);
+    }
+
     private function member(string $memberId): Member
     {
         return Member::create([

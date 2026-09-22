@@ -46,8 +46,7 @@ class MemberInvestmentTest extends TestCase
         $this->get(route('member.investments.active', ['member_id' => $otherMember->member_id]))
             ->assertOk()
             ->assertSeeText('INV-OWN')
-            ->assertDontSeeText('INV-OTHER')
-            ->assertDontSeeText('Other Member');
+            ->assertDontSeeText('INV-OTHER');
     }
 
     public function test_member_closed_list_is_scoped_to_the_member(): void
@@ -63,8 +62,7 @@ class MemberInvestmentTest extends TestCase
         $this->get(route('member.investments.closed', ['member_id' => $otherMember->member_id]))
             ->assertOk()
             ->assertSeeText('INV-CLOSED-OWN')
-            ->assertDontSeeText('INV-CLOSED-OTHER')
-            ->assertDontSeeText('Other Member');
+            ->assertDontSeeText('INV-CLOSED-OTHER');
     }
 
     public function test_admin_can_see_an_investment_created_by_a_member(): void

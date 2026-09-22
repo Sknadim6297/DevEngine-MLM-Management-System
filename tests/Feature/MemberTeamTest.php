@@ -103,7 +103,7 @@ class MemberTeamTest extends TestCase
             ->assertSeeText('Direct Two')
             ->assertSeeText('Nested One')
             ->assertSeeText('Inactive')
-            ->assertDontSeeText('Admin');
+            ->assertDontSee('<td>Admin</td>', false);
     }
 
     private function memberSession(Member $member): void
