@@ -40,6 +40,24 @@
             </div>
         </div>
 
+        <div class="col-12">
+            <div class="dashboard-card rank-summary-card">
+                <div class="card-body-custom">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h4 class="dashboard-title mb-0">Rank Summary</h4>
+                        <a href="{{ route('member.rank') }}" class="btn btn-primary btn-sm"><i class="bi bi-award me-1"></i>View Rank</a>
+                    </div>
+                    <div class="rank-summary-grid mt-3">
+                        <div><span class="stat-label">Current Rank</span><strong>{{ $metrics['rankSummary']['current_rank']?->name ?? 'Unranked' }}</strong></div>
+                        <div><span class="stat-label">Full Team Business</span><strong>{{ number_format((float) $metrics['rankSummary']['full_team_business'], 2) }} USDT</strong></div>
+                        <div><span class="stat-label">Levels Unlocked</span><strong>{{ $metrics['rankSummary']['unlocked_levels'] }} / 32</strong></div>
+                        <div><span class="stat-label">Next Rank</span><strong>{{ $metrics['rankSummary']['next_rank']?->name ?? 'Maximum Rank Achieved' }}</strong></div>
+                        <div><span class="stat-label">Remaining Business</span><strong>{{ number_format(max(0, (float) $metrics['rankSummary']['remaining_business']), 2) }} USDT</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-12 col-xl-6" id="activation-wallet">
             <div class="dashboard-card h-100">
                 <div class="card-body-custom">

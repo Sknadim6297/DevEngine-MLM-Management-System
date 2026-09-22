@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\LevelCommissionTransaction;
+use App\Models\Member;
+use App\Models\RankAchievement;
 use App\Models\RoiTransaction;
+use App\Services\RankService;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -96,9 +99,18 @@ class ReportController extends Controller
         return view('admin.reports.salary');
     }
 
-    public function rankAchievementReport(Request $request)
+    public function rankAchievementReport(Request $request, RankService $rankService)
     {
-        return view('admin.reports.rank-achievement');
+        $rankService->syncMemberRankAchievements(Member::query()->pluck('member_id')->all());
+
+        $query = $this->rankAchievementQuery($request);
+        $totalAmount = (clone $query)->sum('qualifying_business_amount');
+        $achievements = $query->latest('achieved_at')->paginate(10)->withQueryString();
+
+        return view('admin.reports.rank-achievement', [
+            'achievements' => $achievements,
+            'totalAmount' => $totalAmount,
+        ]);
     }
 
     protected function roiQuery(Request $request)
@@ -118,6 +130,26 @@ class ReportController extends Controller
 
         if ($request->filled('level')) {
             $query->where('level', $request->query('level'));
+        }
+
+        return $query;
+    }
+
+    protected function rankAchievementQuery(Request $request)
+    {
+        $query = RankAchievement::query()->with('rank');
+
+        if ($request->filled('member_id')) {
+            $memberId = trim((string) $request->query('member_id'));
+            $query->where('member_id', 'like', '%' . $memberId . '%');
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('achieved_at', '>=', $request->query('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('achieved_at', '<=', $request->query('to_date'));
         }
 
         return $query;

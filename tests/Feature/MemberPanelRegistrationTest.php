@@ -22,7 +22,7 @@ class MemberPanelRegistrationTest extends TestCase
             ->assertSee('value="Rahul Das"', false);
     }
 
-    public function test_member_can_register_with_a_different_existing_sponsor(): void
+    public function test_member_cannot_register_with_an_unrelated_existing_sponsor(): void
     {
         $member = $this->createMember('ST100001', 'Rahul Das', 'rahul@example.com');
         $sponsor = $this->createMember('ST100002', 'Other Sponsor', 'sponsor@example.com');
@@ -34,25 +34,10 @@ class MemberPanelRegistrationTest extends TestCase
             'sponsor_name' => 'Forged Name',
             'email' => 'new@example.com',
             'mobile_no' => '9876543212',
-        ])->assertRedirect(route('member.registration'));
+        ])->assertRedirect(route('member.registration'))
+            ->assertSessionHasErrors(['sponsor_id']);
 
-        $this->assertDatabaseHas('members', [
-            'member_name' => 'New Member',
-            'sponsor_id' => $sponsor->member_id,
-            'sponsor_name' => 'Other Sponsor',
-            'email' => 'new@example.com',
-            'mobile_no' => '9876543212',
-            'status' => 'inactive',
-        ]);
-
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
-            ->get(route('admin.members.inactive'))
-            ->assertOk()
-            ->assertSeeText('New Member')
-            ->assertSeeText($sponsor->member_id)
-            ->assertSeeText('Other Sponsor')
-            ->assertSeeText('new@example.com')
-            ->assertSeeText('9876543212');
+        $this->assertDatabaseMissing('members', ['email' => 'new@example.com']);
     }
 
     public function test_invalid_sponsor_is_rejected(): void
@@ -82,8 +67,8 @@ class MemberPanelRegistrationTest extends TestCase
         $this->getJson(route('member.registration.check-sponsor', ['sponsor_id' => $sponsor->member_id]))
             ->assertOk()
             ->assertJson([
-                'exists' => true,
-                'sponsor_name' => 'Other Sponsor',
+                'exists' => false,
+                'sponsor_name' => null,
             ]);
     }
 

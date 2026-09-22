@@ -13,6 +13,7 @@
     use App\Http\Controllers\SupportController;
     use App\Http\Controllers\ReportController;
     use App\Http\Controllers\LevelCommissionController;
+    use App\Http\Controllers\RankController;
     use App\Http\Controllers\AdminComingSoonController;
     use App\Http\Controllers\Member\NewMemberRegistrationController;
     use App\Http\Controllers\Member\ProfileController;
@@ -20,6 +21,7 @@
     use App\Http\Controllers\Member\InvestController;
     use App\Http\Controllers\Member\MemberChangePasswordController;
     use App\Http\Controllers\Member\ComingSoonController;
+    use App\Http\Controllers\Member\RankController as MemberRankController;
     use App\Http\Controllers\Member\ReportController as MemberReportController;
     use App\Http\Controllers\Member\GenealogyController as MemberGenealogyController;
     use App\Http\Controllers\PublicMemberAuthController;
@@ -161,6 +163,17 @@
 
         Route::get('/member-panel/{member_id}', [MemberController::class, 'memberPanel'])
             ->name('admin.member-panel');
+
+        Route::controller(RankController::class)
+            ->prefix('admin/ranks')
+            ->name('admin.ranks.')
+            ->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{rank}/edit', 'edit')->name('edit');
+                Route::put('/{rank}', 'update')->name('update');
+                Route::delete('/{rank}', 'destroy')->name('destroy');
+            });
 
         Route::get('/admin/coming-soon/{feature}', [AdminComingSoonController::class, 'show'])
             ->where('feature', '[a-z0-9-]+')
@@ -521,6 +534,9 @@
 
         Route::get('/member/lookup-member', [MemberController::class, 'lookupMember'])
             ->name('member.lookup-member');
+
+        Route::get('/member/rank', [MemberRankController::class, 'show'])
+            ->name('member.rank');
 
         Route::get('/member/coming-soon/{feature}', [ComingSoonController::class, 'show'])
             ->where('feature', '[a-z0-9-]+')

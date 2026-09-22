@@ -14,6 +14,8 @@
             <a href="{{ route('admin.members.active') }}"><i class="bi bi-person-check"></i><span>Active Member List</span></a>
         </div>
 
+        <a href="{{ route('admin.ranks.index') }}"><i class="bi bi-award"></i><span>Rank Management</span></a>
+
         <a href="#genealogyMenu" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="genealogyMenu"><i class="bi bi-layers"></i><span>Genealogy</span><i class="bi bi-chevron-down ms-auto submenu-arrow"></i></a>
         <div class="collapse submenu" id="genealogyMenu">
             <a href="{{ route('admin.genealogy.tree-view') }}"><i class="bi bi-diagram-3"></i><span>Tree View</span></a>

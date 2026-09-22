@@ -30,6 +30,17 @@ class WorkingWalletCommissionTest extends TestCase
         ]);
     }
 
+    private function investment(Member $member, string $investmentId, string $amount): Investment
+    {
+        return Investment::create([
+            'investment_id' => $investmentId,
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'amount' => $amount,
+            'status' => 'active',
+        ]);
+    }
+
     public function test_configured_rates_match_documented_levels(): void
     {
         $this->assertSame('1.0000', (string) LevelCommission::where('level', 1)->value('percentage'));
@@ -55,6 +66,7 @@ class WorkingWalletCommissionTest extends TestCase
             'amount' => 1000,
             'status' => 'active',
         ]);
+        $this->investment($memberC, 'INVQUAL001', '6000.0000');
 
         app(LevelCommissionGenerationService::class)->generateForInvestment($investment);
 
@@ -92,6 +104,7 @@ class WorkingWalletCommissionTest extends TestCase
             'amount' => 500,
             'status' => 'active',
         ]);
+        $this->investment($memberB, 'INVQUAL002', '6000.0000');
 
         $service = app(LevelCommissionGenerationService::class);
         $service->generateForInvestment($investment);
@@ -127,6 +140,7 @@ class WorkingWalletCommissionTest extends TestCase
 
         $memberA = $this->member('MB400001', 'ST666666');
         $memberB = $this->member('MB400002', $memberA->member_id);
+        $this->investment($memberB, 'INVQUAL004', '6000.0000');
 
         $this->post(route('admin.investments.store'), [
             'investment_id' => 'INVWORK004',
@@ -152,6 +166,7 @@ class WorkingWalletCommissionTest extends TestCase
             'amount' => '1000.0000',
             'status' => 'active',
         ]);
+        $this->investment($memberC, 'INVQUAL005', '6000.0000');
 
         $service = app(LevelCommissionGenerationService::class);
         $firstDate = CarbonImmutable::parse('2026-09-17', 'Asia/Kolkata');

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LevelCommissionTransaction;
 use App\Models\Member;
 use App\Models\RoiTransaction;
+use App\Services\RankService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
@@ -42,7 +43,7 @@ class ReportController extends Controller
         });
     }
 
-    public function levelIncomeReport(Request $request): View
+    public function levelIncomeReport(Request $request, RankService $rankService): View
     {
         $member = $this->currentMember($request);
         $query = $this->levelIncomeQuery($member, $request);
@@ -52,12 +53,19 @@ class ReportController extends Controller
             ->distinct()
             ->orderBy('level')
             ->pluck('level');
+        $rankData = $rankService->calculateForMember($member);
+        $levelAccess = collect(range(1, 32))->map(fn (int $level): array => [
+            'level' => $level,
+            'unlocked' => $level <= $rankData['unlocked_levels'],
+        ]);
 
         return view('member.reports.level-income', [
             'member' => $member,
             'transactions' => $query->latest()->paginate(10)->withQueryString(),
             'totalAmount' => (clone $query)->sum('income_amount'),
             'levels' => $levels,
+            'rankData' => $rankData,
+            'levelAccess' => $levelAccess,
         ]);
     }
 

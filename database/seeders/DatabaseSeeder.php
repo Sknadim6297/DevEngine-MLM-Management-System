@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $this->call(RankSeeder::class);
         $this->call(CleanProductionSeeder::class);
     }
 }

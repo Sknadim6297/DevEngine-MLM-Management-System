@@ -7,6 +7,7 @@ use App\Models\LevelCommissionTransaction;
 use App\Models\Member;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
+use App\Services\RankService;
 
 /**
  * Credits upline members' Working Wallet with Level Commission for a qualifying investment.
@@ -23,6 +24,10 @@ class LevelCommissionGenerationService
     private const MONEY_SCALE = 4;
 
     private const MAX_LEVEL = 32;
+
+    public function __construct(private readonly RankService $rankService)
+    {
+    }
 
     public function generateForInvestment(Investment $investment, ?CarbonImmutable $businessDate = null): array
     {
@@ -42,6 +47,7 @@ class LevelCommissionGenerationService
         $currentSponsorId = $sourceMember->sponsor_id;
         $visited = [$sourceMember->member_id => true];
 
+        $chain = [];
         for ($level = 1; $level <= self::MAX_LEVEL; $level++) {
             if (empty($currentSponsorId) || isset($visited[$currentSponsorId])) {
                 break;
@@ -58,10 +64,28 @@ class LevelCommissionGenerationService
 
             $visited[$beneficiary->member_id] = true;
 
-            $outcome = $this->creditLevelCommission($investment, $beneficiary, $level, $businessDate);
-            $result[$outcome]++;
+            $chain[] = ['member' => $beneficiary, 'level' => $level];
 
             $currentSponsorId = $beneficiary->sponsor_id;
+        }
+
+        if ($chain === []) {
+            return $result;
+        }
+
+        $rankResults = $this->rankService->calculateForMembers(
+            array_map(fn (array $entry): string => $entry['member']->member_id, $chain)
+        );
+
+        foreach ($chain as $entry) {
+            $rankData = $rankResults[$entry['member']->member_id];
+            if ($entry['level'] > $rankData['unlocked_levels']) {
+                $result['skipped']++;
+                continue;
+            }
+
+            $outcome = $this->creditLevelCommission($investment, $entry['member'], $entry['level'], $businessDate);
+            $result[$outcome]++;
         }
 
         return $result;

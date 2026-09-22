@@ -65,14 +65,21 @@ class NewMemberRegistrationController extends Controller
         $currentMember = $this->currentMember($request);
         $authorizedIds = Member::authorizedMemberIds($currentMember->member_id);
 
-        $validated = $request->validate([
-            'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
-            'sponsor_id' => ['required', 'string', Rule::in($authorizedIds)],
-            'email' => ['required', 'email', 'unique:members,email'],
-            'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
-        ], [
-            'sponsor_id.in' => 'Unauthorized sponsor ID.',
-        ]);
+        $validator = 
+            \Illuminate\Support\Facades\Validator::make($request->all(), [
+                'member_name' => ['required', 'string', 'min:3', 'regex:/^[A-Za-z ]+$/'],
+                'sponsor_id' => ['required', 'string', Rule::in($authorizedIds)],
+                'email' => ['required', 'email', 'unique:members,email'],
+                'mobile_no' => ['required', 'string', 'regex:/^[0-9+\-\s]+$/', 'min:10', 'max:15'],
+            ], [
+                'sponsor_id.in' => 'Unauthorized sponsor ID.',
+            ]);
+
+        if ($validator->fails()) {
+            return redirect()->route('member.registration')->withErrors($validator)->withInput();
+        }
+
+        $validated = $validator->validated();
 
         $sponsor = Member::where('member_id', $validated['sponsor_id'])->first();
 

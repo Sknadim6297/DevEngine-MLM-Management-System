@@ -42,6 +42,12 @@
             </a>
 
         </div>
+
+        <a href="{{ route('member.rank') }}">
+            <i class="bi bi-award"></i>
+            <span>My Rank</span>
+        </a>
+
               <a href="#genealogyMenu" data-bs-toggle="collapse" role="button" aria-expanded="false"
             aria-controls="genealogyMenu">
 

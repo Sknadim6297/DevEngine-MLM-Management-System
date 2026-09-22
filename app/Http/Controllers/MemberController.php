@@ -7,6 +7,7 @@ use App\Models\Investment;
 use App\Models\InvestmentWithdrawal;
 use App\Models\LevelCommissionTransaction;
 use App\Models\RoiTransaction;
+use App\Services\RankService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -210,6 +211,9 @@ class MemberController extends Controller
             ->where('status', 'active')
             ->whereHas('member', fn ($query) => $query->where('status', 'inactive'))
             ->sum('amount');
+        $rankService = app(RankService::class);
+        $rankService->syncMemberRankAchievement($member);
+        $rankData = $rankService->calculateForMember($member);
 
         $request->session()->put('member_context_id', $member->member_id);
 
@@ -228,7 +232,8 @@ class MemberController extends Controller
                 'salaryIncome' => 0,
                 'activeMembers' => Member::where('sponsor_id', $member->member_id)->where('status', 'active')->count(),
                 'inactiveMembers' => Member::where('sponsor_id', $member->member_id)->where('status', 'inactive')->count(),
-                'rank' => data_get($member, 'rank', 'N/A'),
+                'rank' => $rankData['current_rank']?->name ?? 'Unranked',
+                'rankSummary' => $rankData,
                 'teamActiveInvestment' => $teamActiveInvestment,
                 'teamInactiveInvestment' => $teamInactiveInvestment,
                 'teamActiveInvestmentRatio' => $teamActiveInvestment . ':'. $teamInactiveInvestment,

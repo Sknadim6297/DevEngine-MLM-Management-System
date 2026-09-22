@@ -89,6 +89,22 @@
         </div>
         </form>
 
+        <div class="rank-access-panel mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                <strong>Level Commission Access</strong>
+                <span class="small text-muted">{{ $rankData['current_rank']?->name ?? 'Unranked' }} · {{ $rankData['unlocked_levels'] }} / 32 levels unlocked</span>
+            </div>
+            <div class="rank-level-grid">
+                @foreach ($levelAccess as $access)
+                    <span class="rank-level-badge {{ $access['unlocked'] ? 'level-unlocked' : 'level-locked' }}">
+                        <i class="bi {{ $access['unlocked'] ? 'bi-check-lg' : 'bi-lock' }}"></i>
+                        L{{ $access['level'] }}
+                    </span>
+                @endforeach
+            </div>
+            <p class="small text-muted mb-0 mt-2">Locked levels are not eligible for Level Commission.</p>
+        </div>
+
           <div class="col-md-2 mb-3">
 
                 <div class="total-amount-box">

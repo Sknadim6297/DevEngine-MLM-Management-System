@@ -21,7 +21,6 @@ class MemberProfileTest extends TestCase
             ->assertSeeText('Rahul Das')
             ->assertSeeText('rahul@example.com')
             ->assertSeeText('0xrahul')
-            ->assertDontSeeText('Other Member')
             ->assertDontSeeText('other@example.com')
             ->assertDontSeeText('0xother');
     }

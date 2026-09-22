@@ -13,6 +13,7 @@ class Member extends Model
 
     protected $fillable = [
         'member_id',
+        'rank_id',
         'sponsor_id',
         'sponsor_name',
         'member_name',
@@ -32,6 +33,11 @@ class Member extends Model
         'working_wallet_amount' => 'decimal:4',
         'roi_wallet_amount' => 'decimal:4',
     ];
+
+    public function rank(): BelongsTo
+    {
+        return $this->belongsTo(Rank::class, 'rank_id');
+    }
 
     public function sponsor(): BelongsTo
     {
