@@ -13,6 +13,7 @@
     use App\Http\Controllers\SupportController;
     use App\Http\Controllers\ReportController;
     use App\Http\Controllers\LevelCommissionController;
+    use App\Http\Controllers\AdminComingSoonController;
     use App\Http\Controllers\Member\NewMemberRegistrationController;
     use App\Http\Controllers\Member\ProfileController;
     use App\Http\Controllers\Member\TeamController;
@@ -160,6 +161,10 @@
 
         Route::get('/member-panel/{member_id}', [MemberController::class, 'memberPanel'])
             ->name('admin.member-panel');
+
+        Route::get('/admin/coming-soon/{feature}', [AdminComingSoonController::class, 'show'])
+            ->where('feature', '[a-z0-9-]+')
+            ->name('admin.coming-soon');
 
         /*
         |--------------------------------------------------------------------------
