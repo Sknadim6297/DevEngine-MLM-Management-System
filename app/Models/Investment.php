@@ -16,12 +16,14 @@ class Investment extends Model
         'member_id',
         'member_name',
         'amount',
+        'closing_amount',
         'status',
         'closed_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:4',
+        'closing_amount' => 'decimal:4',
         'closed_at' => 'datetime',
     ];
 

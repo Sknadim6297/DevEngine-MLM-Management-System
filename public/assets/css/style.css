@@ -833,7 +833,29 @@ body.sidebar-collapsed .main-wrapper {
     background: #fafafa;
     border: 1px solid #eeeeee;
     border-radius: 8px;
-    overflow-x: auto;
+    overflow: auto;
+    min-height: 260px;
+}
+
+.genealogy-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
+.genealogy-toolbar .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.genealogy-zoom-label {
+    min-width: 44px;
+    color: #888;
+    font-size: 12px;
+    text-align: center;
 }
 
 
@@ -843,11 +865,15 @@ body.sidebar-collapsed .main-wrapper {
 .member-tree ul {
     list-style: none;
     margin: 0;
-    padding-left: 35px;
+    padding-left: 28px;
 }
 
 .member-tree {
     padding-left: 0;
+    min-width: max-content;
+    transform: scale(var(--tree-scale, 1));
+    transform-origin: top left;
+    transition: transform .2s ease;
 }
 
 
@@ -860,16 +886,16 @@ body.sidebar-collapsed .main-wrapper {
         .member-tree ul::before {
             content: "";
             position: absolute;
-            left: 12px;
+            left: 13px;
             top: 0;
-            bottom: 15px;
+            bottom: 24px;
             border-left: 1px solid #d6d6d6;
         }
 
 
-    .member-tree li {
+        .member-tree li {
         position: relative;
-        padding: 8px 0 8px 25px;
+            padding: 7px 0 7px 24px;
     }
 
 
@@ -878,9 +904,9 @@ body.sidebar-collapsed .main-wrapper {
         .member-tree li::before {
             content: "";
             position: absolute;
-            left: 12px;
-            top: 28px;
-            width: 15px;
+            left: 13px;
+            top: 31px;
+            width: 11px;
             border-top: 1px solid #d6d6d6;
         }
 
@@ -901,14 +927,13 @@ body.sidebar-collapsed .main-wrapper {
 .tree-member {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
+    gap: 8px;
+    padding: 9px 11px;
     background: #ffffff;
     border: 1px solid #eeeeee;
     border-radius: 7px;
     box-shadow: 0 2px 7px rgba(0,0,0,.05);
-    min-width: 210px;
-    cursor: pointer;
+    min-width: 240px;
     transition: .2s;
 }
 
@@ -917,9 +942,92 @@ body.sidebar-collapsed .main-wrapper {
         background: #fff5f9;
     }
 
-    .tree-member > i {
-        font-size: 22px;
-        color: #d4145a;
+.tree-member.is-active {
+    border-left: 3px solid #d4145a;
+}
+
+.tree-member.is-inactive {
+    border-left: 3px solid #adb5bd;
+}
+
+.tree-toggle,
+.tree-toggle-spacer {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+}
+
+.tree-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #888;
+    cursor: pointer;
+}
+
+.tree-toggle:hover {
+    color: #d4145a;
+}
+
+.tree-member-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #fff3f8;
+    color: #d4145a;
+}
+
+.tree-member.is-inactive .tree-member-icon {
+    background: #f1f3f5;
+    color: #8c959f;
+}
+
+.tree-member-content {
+    min-width: 120px;
+}
+
+.tree-member-meta {
+    display: flex;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 3px;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.tree-status,
+.tree-child-count {
+    font-size: 10px;
+}
+
+.tree-status {
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.status-active {
+    background: #eaf8ef;
+    color: #218838;
+}
+
+.status-inactive {
+    background: #f1f3f5;
+    color: #6c757d;
+}
+
+.tree-child-count {
+    color: #999;
+}
+
+    .tree-member-icon > i {
+        font-size: 17px;
     }
 
     .tree-member strong {
@@ -934,6 +1042,20 @@ body.sidebar-collapsed .main-wrapper {
         color: #999;
         margin-top: 2px;
     }
+
+@media (max-width: 575.98px) {
+    .tree-container {
+        padding: 15px;
+    }
+
+    .genealogy-toolbar .btn span {
+        display: none;
+    }
+
+    .tree-member {
+        min-width: 218px;
+    }
+}
 
 .btn-primary {
     background: linear-gradient(135deg, #d4145a, #f472b6);

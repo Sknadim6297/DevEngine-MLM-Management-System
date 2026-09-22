@@ -93,7 +93,11 @@ class RoiGenerationService
                 $remainingCap = bcsub($cap, $combinedIncome, self::MONEY_SCALE);
 
                 if (bccomp($remainingCap, '0', self::MONEY_SCALE) <= 0) {
-                    $investment->update(['status' => 'expired', 'closed_at' => now()]);
+                    $investment->update([
+                        'status' => 'expired',
+                        'closed_at' => now(),
+                        'closing_amount' => $combinedIncome,
+                    ]);
 
                     return 'expired';
                 }
@@ -135,7 +139,11 @@ class RoiGenerationService
                 $reachesCap = bccomp(bcadd($combinedIncome, $incomeAmount, self::MONEY_SCALE), $cap, self::MONEY_SCALE) >= 0;
 
                 if ($reachesCap) {
-                    $investment->update(['status' => 'expired', 'closed_at' => now()]);
+                    $investment->update([
+                        'status' => 'expired',
+                        'closed_at' => now(),
+                        'closing_amount' => $cap,
+                    ]);
                 }
 
                 Log::info('ROI generated.', [

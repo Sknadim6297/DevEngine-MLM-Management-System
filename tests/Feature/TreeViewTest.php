@@ -89,7 +89,12 @@ class TreeViewTest extends TestCase
             ->assertSee('Admin')
             ->assertSee('SK ABU SALEH')
             ->assertSee('Member A')
-            ->assertSee('Member A1');
+            ->assertSee('Member A1')
+            ->assertSee('Expand All')
+            ->assertSee('Fit Tree')
+            ->assertSee('data-tree-toggle', false)
+            ->assertSee('status-active', false)
+            ->assertSee('2 children');
     }
 
     public function test_selected_member_id_shows_that_member_tree(): void

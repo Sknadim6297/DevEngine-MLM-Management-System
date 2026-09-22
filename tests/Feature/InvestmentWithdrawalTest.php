@@ -66,6 +66,24 @@ class InvestmentWithdrawalTest extends TestCase
             ->assertDontSeeText($active->investment_id);
     }
 
+    public function test_admin_closed_list_displays_stored_closing_amount(): void
+    {
+        $this->signIn();
+        $member = $this->member('ST700003');
+        $expired = $this->investment($member, 'INV700005');
+        $expired->update(['closing_amount' => '1500.0000']);
+        $active = $this->investment($member, 'INV700006', 'active');
+
+        $this->get(route('admin.investments.closed-investments'))
+            ->assertOk()
+            ->assertSeeText('Investment Amount (USDT)')
+            ->assertSeeText('Closing Amount (USDT)')
+            ->assertSeeText('500 USDT')
+            ->assertSeeText('1500 USDT')
+            ->assertSeeText($expired->investment_id)
+            ->assertDontSeeText($active->investment_id);
+    }
+
     public function test_withdrawal_entry_lookup_requires_matching_member_and_expired_investment(): void
     {
         $this->signIn();

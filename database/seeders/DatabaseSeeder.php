@@ -24,7 +24,6 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $this->call(MemberSeeder::class);
-        $this->call(RepairDuplicatePanMembersSeeder::class);
+        $this->call(CleanProductionSeeder::class);
     }
 }

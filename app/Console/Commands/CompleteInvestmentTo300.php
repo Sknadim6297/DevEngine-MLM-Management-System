@@ -59,6 +59,7 @@ class CompleteInvestmentTo300 extends Command
         if (bccomp($currentCombinedReturn, $capAmount, 4) >= 0) {
             $investment->status = 'expired';
             $investment->closed_at = $investment->closed_at ?? now();
+            $investment->closing_amount = $capAmount;
             $investment->save();
 
             $this->printSummary($investment, $existingRoi, $existingLevelCommission, $currentCombinedReturn, '0.0000', '0.0000', 'expired');
@@ -70,6 +71,7 @@ class CompleteInvestmentTo300 extends Command
         if ($existingDummyRoi || $existingDummyLevelCommission) {
             $investment->status = 'expired';
             $investment->closed_at = $investment->closed_at ?? now();
+            $investment->closing_amount = $capAmount;
             $investment->save();
 
             $this->printSummary($investment, $existingRoi, $existingLevelCommission, $currentCombinedReturn, $remainingAmount, '0.0000', 'expired');
@@ -126,6 +128,7 @@ class CompleteInvestmentTo300 extends Command
 
                 $investment->status = 'expired';
                 $investment->closed_at = now();
+                $investment->closing_amount = $capAmount;
                 $investment->save();
             });
         } catch (\Throwable $exception) {

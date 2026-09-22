@@ -22,6 +22,11 @@ class MemberGenealogyTest extends TestCase
         $response->assertOk()
             ->assertSeeText($member->member_id)
             ->assertSeeText($child->member_id)
+            ->assertSeeText('Expand All')
+            ->assertSeeText('Fit Tree')
+            ->assertSee('data-tree-toggle', false)
+            ->assertSee('status-active', false)
+            ->assertSeeText('1 child')
             ->assertDontSeeText($otherRoot->member_id);
 
         $this->assertStringNotContainsString('id="memberTreeId" readonly', $response->getContent());

@@ -65,6 +65,30 @@ class MemberInvestmentTest extends TestCase
             ->assertDontSeeText('INV-CLOSED-OTHER');
     }
 
+    public function test_closed_list_displays_stored_closing_amount_and_active_investments_have_none(): void
+    {
+        $member = $this->member('ST100008', 'Rahul Das');
+        $closed = $this->investment($member, 'INV-CLOSED-AMOUNT', '100.0000', 'expired');
+        $closed->update([
+            'closing_amount' => '300.0000',
+            'closed_at' => now(),
+        ]);
+        $this->investment($member, 'INV-ACTIVE-AMOUNT', '200.0000', 'active');
+        $this->memberSession($member);
+
+        $this->get(route('member.investments.closed'))
+            ->assertOk()
+            ->assertSeeText('Closing Amount (USDT)')
+            ->assertSeeText('300 USDT')
+            ->assertSeeText('INV-CLOSED-AMOUNT')
+            ->assertDontSeeText('INV-ACTIVE-AMOUNT');
+
+        $this->assertDatabaseHas('investments', [
+            'investment_id' => 'INV-ACTIVE-AMOUNT',
+            'closing_amount' => null,
+        ]);
+    }
+
     public function test_admin_can_see_an_investment_created_by_a_member(): void
     {
         $member = $this->member('ST100007', 'Rahul Das');

@@ -16,9 +16,9 @@
         <div class="row align-items-end mb-4">
 
             <div class="col-md-6">
-                <label>ID <span class="text-danger">*</span></label>
+                <label>Search Member <span class="text-danger">*</span></label>
 
-                <form method="GET" action="{{ route('member.genealogy.tree-view') }}">
+                <form method="GET" action="{{ route('member.genealogy.tree-view') }}" id="memberTreeForm">
                     <input type="text"
                            class="form-control"
                            id="memberTreeId"
@@ -45,6 +45,7 @@
 
         </div>
 
+        @include('shared.genealogy-controls')
 
         <!-- TREE -->
         <div class="tree-container" id="treeContainer">

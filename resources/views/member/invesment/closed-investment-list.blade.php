@@ -90,6 +90,7 @@
                 <th>Category</th>
                 <th>Investment Id</th>
                 <th>Investment Amount (USDT)</th>
+                <th>Closing Amount (USDT)</th>
                 <th>Investment Date</th>
                 <th>Close Date</th>
             </tr>
@@ -102,11 +103,12 @@
                     <td>Closed</td>
                     <td>{{ $investment->investment_id }}</td>
                     <td>{{ rtrim(rtrim(number_format((float) $investment->amount, 4, '.', ''), '0'), '.') ?: '0' }} USDT</td>
+                    <td>{{ rtrim(rtrim(number_format((float) $investment->closing_amount, 4, '.', ''), '0'), '.') ?: '0' }} USDT</td>
                     <td>{{ $investment->created_at?->format('d-m-Y') }}</td>
                     <td>{{ $investment->closed_at?->format('d-m-Y') }}</td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="text-center">No Record</td></tr>
+                <tr><td colspan="7" class="text-center">No Record</td></tr>
             @endforelse
         </tbody>
     </table>
