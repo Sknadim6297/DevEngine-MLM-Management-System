@@ -215,6 +215,31 @@ class MemberReportTest extends TestCase
         $this->get(route('member.reports.rank-achievement'))->assertForbidden();
     }
 
+    public function test_member_level_income_total_stays_correct_on_paginated_pages(): void
+    {
+        $member = $this->member('ST100008');
+
+        foreach (range(1, 11) as $index) {
+            $this->commission(
+                $member,
+                'LC-PAGE-TOTAL-' . $index,
+                'INV-LC-PAGE-TOTAL-' . $index,
+                1,
+                (string) $index . '.0000',
+                '2026-09-' . str_pad((string) $index, 2, '0', STR_PAD_LEFT)
+            );
+        }
+
+        $this->memberSession($member);
+
+        $this->get(route('member.reports.level-income', [
+            'level' => 1,
+            'page' => 2,
+        ]))->assertOk()
+            ->assertSeeText('66')
+            ->assertSeeText('Total Amount (USDT)');
+    }
+
     public function test_all_paginated_member_reports_use_shared_pagination_and_preserve_filters(): void
     {
         $member = $this->member('ST100007');

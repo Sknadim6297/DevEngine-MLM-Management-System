@@ -20,11 +20,12 @@ class ReportController extends Controller
     {
         $member = $this->currentMember($request);
         $query = $this->roiQuery($member, $request);
+        $totalAmount = (clone $query)->sum('income_amount');
 
         return view('member.reports.roi-report', [
             'member' => $member,
             'transactions' => $query->latest()->paginate(10)->withQueryString(),
-            'totalAmount' => (clone $query)->sum('income_amount'),
+            'totalAmount' => $totalAmount,
         ]);
     }
 
@@ -49,6 +50,7 @@ class ReportController extends Controller
     {
         $member = $this->currentMember($request);
         $query = $this->levelIncomeQuery($member, $request);
+        $totalAmount = (clone $query)->sum('income_amount');
         $levels = LevelCommissionTransaction::query()
             ->where('member_id', $member->member_id)
             ->whereNotNull('level')
@@ -64,7 +66,7 @@ class ReportController extends Controller
         return view('member.reports.level-income', [
             'member' => $member,
             'transactions' => $query->latest()->paginate(10)->withQueryString(),
-            'totalAmount' => (clone $query)->sum('income_amount'),
+            'totalAmount' => $totalAmount,
             'levels' => $levels,
             'rankData' => $rankData,
             'levelAccess' => $levelAccess,
