@@ -1,20 +1,14 @@
 @if ($paginator->hasPages())
-    <nav class="pagination-wrapper" aria-label="Pagination">
-        <div class="pagination-content">
-            <p class="pagination-info small text-muted">
-                {{ __('Showing') }}
-                <span class="fw-semibold">{{ $paginator->firstItem() }}</span>
-                {{ __('to') }}
-                <span class="fw-semibold">{{ $paginator->lastItem() }}</span>
-                {{ __('of') }}
-                <span class="fw-semibold">{{ $paginator->total() }}</span>
-                {{ __('results') }}
-            </p>
+    <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+        <div class="table-info">
+            Showing {{ $paginator->firstItem() }} to {{ $paginator->lastItem() }} of {{ $paginator->total() }} entries
+        </div>
 
-            <ul class="pagination">
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
                 @if ($paginator->onFirstPage())
-                    <li class="page-item disabled" aria-disabled="true" aria-label="Previous">
-                        <span class="page-link">Previous</span>
+                    <li class="page-item disabled" aria-disabled="true">
+                        <a class="page-link" href="#">Previous</a>
                     </li>
                 @else
                     <li class="page-item">
@@ -30,7 +24,7 @@
                     @if (is_array($element))
                         @foreach ($element as $page => $url)
                             @if ($page == $paginator->currentPage())
-                                <li class="page-item active" aria-current="page"><span class="page-link">{{ $page }}</span></li>
+                                <li class="page-item active" aria-current="page"><a class="page-link" href="#">{{ $page }}</a></li>
                             @else
                                 <li class="page-item"><a class="page-link" href="{{ $url }}">{{ $page }}</a></li>
                             @endif
@@ -43,11 +37,11 @@
                         <a class="page-link" href="{{ $paginator->nextPageUrl() }}" rel="next" aria-label="Next">Next</a>
                     </li>
                 @else
-                    <li class="page-item disabled" aria-disabled="true" aria-label="Next">
-                        <span class="page-link">Next</span>
+                    <li class="page-item disabled" aria-disabled="true">
+                        <a class="page-link" href="#">Next</a>
                     </li>
                 @endif
             </ul>
-        </div>
-    </nav>
+        </nav>
+    </div>
 @endif

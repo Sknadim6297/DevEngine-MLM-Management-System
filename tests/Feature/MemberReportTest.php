@@ -268,7 +268,9 @@ class MemberReportTest extends TestCase
             'from_date' => '2026-09-01',
             'page' => 2,
         ]))->assertOk()
-            ->assertSee('pagination-wrapper', false)
+            ->assertSee('Showing', false)
+            ->assertSee('Previous', false)
+            ->assertSee('Next', false)
             ->assertSee('page-item active', false)
             ->assertSee('from_date=2026-09-01', false)
             ->assertDontSee('« Previous', false);
@@ -278,7 +280,9 @@ class MemberReportTest extends TestCase
             'to_date' => '2026-09-30',
             'page' => 2,
         ]))->assertOk()
-            ->assertSee('pagination-wrapper', false)
+            ->assertSee('Showing', false)
+            ->assertSee('Previous', false)
+            ->assertSee('Next', false)
             ->assertSee('page-item active', false)
             ->assertSee('level=1', false)
             ->assertSee('to_date=2026-09-30', false)

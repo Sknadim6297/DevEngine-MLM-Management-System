@@ -18,6 +18,17 @@
         <form method="GET" action="{{ route('member.reports.level-income') }}" id="levelIncomeReportForm">
         <div class="row align-items-end">
 
+            <!-- MEMBER ID -->
+            <div class="col-md-4 mb-3">
+                <label>Member ID</label>
+
+                <input type="text"
+                       name="member_id"
+                       value="{{ request('member_id') }}"
+                       class="form-control"
+                       placeholder="Enter Member ID">
+            </div>
+
             <!-- FROM DATE -->
             <div class="col-md-3 mb-3">
                 <label>From Date</label>
@@ -126,6 +137,8 @@
                     <tr>
 
                         <th>Serial No</th>
+                        <th>Member ID</th>
+                        <th>Name</th>
                         <th>Income Amount (USDT)</th>
                         <th>On Amount (USDT)</th>
                         <th>From Member ID</th>
@@ -142,6 +155,8 @@
                     @forelse ($transactions as $transaction)
                         <tr>
                             <td>{{ $transactions->firstItem() + $loop->index }}</td>
+                            <td>{{ $transaction->member_id }}</td>
+                            <td>{{ $transaction->member_name }}</td>
                             <td>{{ rtrim(rtrim(number_format((float) $transaction->income_amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
                             <td>{{ rtrim(rtrim(number_format((float) $transaction->on_amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
                             <td>{{ $transaction->from_member_id }}</td>
@@ -150,7 +165,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center">No Record</td>
+                            <td colspan="8" class="text-center">No level commission transactions found.</td>
                         </tr>
                     @endforelse
 

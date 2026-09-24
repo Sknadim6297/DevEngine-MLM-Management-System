@@ -746,85 +746,10 @@ body.sidebar-collapsed .main-wrapper {
     color: #d4145a;
 }
 
-.pagination-wrapper {
-    width: 100%;
-    padding: 10px 0 6px;
-}
-
-.pagination-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    flex-wrap: wrap;
-    width: 100%;
-}
-
-.pagination-info {
-    margin: 0;
-    white-space: nowrap;
-}
-
-.pagination-wrapper .pagination {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin: 0;
-}
-
-.pagination-wrapper .page-item {
-    margin: 0;
-}
-
-.pagination-wrapper .page-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 36px;
-    height: 36px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.pagination-wrapper .page-item:not(.active):not(.disabled) .page-link:hover {
-    background: #fff5f9;
-    border-color: #d4145a;
-    color: #d4145a;
-}
-
-.pagination-wrapper .page-item.disabled .page-link {
-    color: #adb5bd;
-    background: #f8f9fa;
-    border-color: #dee2e6;
-    cursor: not-allowed;
-}
-
 .pagination .page-item.active .page-link {
     background: #d4145a;
     border-color: #d4145a;
     color: #fff;
-}
-
-@media (max-width: 575.98px) {
-    .pagination-wrapper {
-        padding: 8px 0 4px;
-    }
-
-    .pagination-content {
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .pagination-info {
-        white-space: normal;
-    }
-
-    .pagination-wrapper .pagination {
-        justify-content: flex-start;
-    }
 }
 
 .tree-container {
