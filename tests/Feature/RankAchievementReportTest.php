@@ -158,6 +158,98 @@ class RankAchievementReportTest extends TestCase
         $this->get(route('admin.report.rank-achievement'))->assertRedirect(route('login'));
     }
 
+    public function test_rank_progression_test_dataset_resets_and_creates_exactly_ten_achievements(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+
+        $admin = User::factory()->create(['is_admin' => true]);
+        $this->actingAs($admin);
+
+        Member::query()->create([
+            'member_id' => 'LEGACY-ALPHA',
+            'sponsor_id' => 'ST666666',
+            'sponsor_name' => 'Admin',
+            'member_name' => 'Legacy Alpha',
+            'mobile_no' => '9876500001',
+            'pan_card_no' => 'LEGACY1',
+            'email' => 'legacy.alpha@example.test',
+            'status' => 'active',
+            'rank_id' => Rank::where('name', 'Blue Diamond')->value('id'),
+        ]);
+
+        RankAchievement::query()->create([
+            'member_id' => 'LEGACY-ALPHA',
+            'member_name' => 'Legacy Alpha',
+            'rank_id' => Rank::where('name', 'Diamond')->value('id'),
+            'qualifying_business_amount' => '250000.0000',
+            'achieved_at' => now('Asia/Kolkata')->subDay(),
+        ]);
+
+        $this->artisan('rank:test-dataset')->assertExitCode(0);
+
+        $this->assertSame(10, RankAchievement::query()->count());
+        $this->assertSame(0, Member::query()->whereNotNull('rank_id')->where('member_id', 'not like', 'DEMO-%')->count());
+        $this->assertSame('Master Blaster', Member::where('member_id', 'DEMO-101')->first()->rank?->name);
+
+        $this->get(route('admin.report.rank-achievement'))
+            ->assertOk()
+            ->assertSeeText('DEMO-101')
+            ->assertSeeText('DEMO-104')
+            ->assertDontSeeText('LEGACY-ALPHA');
+
+        $this->assertDatabaseHas('rank_achievements', ['member_id' => 'DEMO-101', 'rank_id' => Rank::where('name', 'Diamond')->value('id')]);
+        $this->assertDatabaseHas('rank_achievements', ['member_id' => 'DEMO-101', 'rank_id' => Rank::where('name', 'Blue Diamond')->value('id')]);
+        $this->assertDatabaseHas('rank_achievements', ['member_id' => 'DEMO-101', 'rank_id' => Rank::where('name', 'Master Blaster')->value('id')]);
+    }
+
+    public function test_rank_advance_only_awards_the_immediate_next_rank_for_demo_members(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+
+        $member = Member::query()->firstOrCreate(
+            ['member_id' => 'DEMO-101'],
+            [
+                'sponsor_id' => 'ST666666',
+                'sponsor_name' => 'Admin',
+                'member_name' => 'Demo Test Leader',
+                'mobile_no' => '9876520001',
+                'pan_card_no' => 'ADV0001',
+                'email' => 'demo101@example.test',
+                'status' => 'active',
+                'rank_id' => Rank::where('name', 'Diamond')->value('id'),
+            ]
+        );
+
+        RankAchievement::query()->where('member_id', $member->member_id)->delete();
+
+        $child = Member::create([
+            'member_id' => 'DEMO-ADVANCE-CHILD',
+            'sponsor_id' => $member->member_id,
+            'sponsor_name' => $member->member_name,
+            'member_name' => 'Demo Advance Child',
+            'mobile_no' => '9876520002',
+            'pan_card_no' => 'ADV0002',
+            'email' => 'demo.advance.child@example.test',
+            'status' => 'active',
+        ]);
+
+        Investment::create([
+            'investment_id' => 'ADV-QUALIFY-001',
+            'member_id' => $child->member_id,
+            'member_name' => $child->member_name,
+            'amount' => '600000.0000',
+            'status' => 'active',
+        ]);
+
+        $this->assertSame('Diamond', $member->fresh()->rank->name);
+        $this->artisan('rank:advance', ['--member-id' => $member->member_id])->assertExitCode(0);
+
+        $member->refresh();
+        $this->assertSame('Blue Diamond', $member->rank->name);
+        $this->assertSame(1, RankAchievement::query()->where('member_id', $member->member_id)->where('rank_id', Rank::where('name', 'Blue Diamond')->value('id'))->count());
+        $this->assertSame(0, RankAchievement::query()->where('member_id', $member->member_id)->where('rank_id', Rank::where('name', 'Master Blaster')->value('id'))->count());
+    }
+
     private function member(string $id, string $sponsorId): Member
     {
         return Member::create([

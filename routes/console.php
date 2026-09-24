@@ -31,3 +31,11 @@ if (app()->environment(['local', 'testing'])) {
 } else {
     $levelCommissionSchedule->dailyAt('00:00');
 }
+
+$rankProgressionSchedule = Schedule::command('rank:advance')->timezone('Asia/Kolkata')->withoutOverlapping();
+
+if (app()->environment(['local', 'testing'])) {
+    $rankProgressionSchedule->everyTwoMinutes();
+} else {
+    $rankProgressionSchedule->dailyAt('00:00');
+}
