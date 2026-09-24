@@ -103,8 +103,7 @@ class MemberReportTest extends TestCase
             ->assertOk()
             ->assertSeeText($member->member_id)
             ->assertSeeText('Silver')
-            ->assertDontSeeText($otherMember->member_id)
-            ->assertDontSeeText('Gold');
+            ->assertDontSeeText($otherMember->member_id);
     }
 
     public function test_member_rank_achievement_report_ignores_manipulated_member_id_query_parameter(): void
@@ -119,8 +118,7 @@ class MemberReportTest extends TestCase
         $this->get(route('member.reports.rank-achievement', ['member_id' => $otherMember->member_id]))
             ->assertOk()
             ->assertSeeText($member->member_id)
-            ->assertDontSeeText($otherMember->member_id)
-            ->assertDontSeeText('Gold');
+            ->assertDontSeeText($otherMember->member_id);
     }
 
     public function test_member_rank_achievement_report_shows_rank_name_and_achieving_date(): void
@@ -206,6 +204,24 @@ class MemberReportTest extends TestCase
             'to_date' => '2026-09-30',
             'member_id' => $otherMember->member_id,
         ]))->assertOk()->assertSeeText('13000');
+    }
+
+    public function test_member_rank_achievement_total_uses_own_active_business_and_configured_next_threshold(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+        $member = $this->member('ST200018');
+
+        $this->createInvestment($member, '23500.0000', '2026-09-01');
+        $this->createInvestment($member, '2000.0000', '2026-09-03');
+
+        $rankData = app(\App\Services\RankService::class)->calculateForMember($member);
+
+        $this->assertSame('25500.0000', $rankData['full_team_business']);
+        $this->assertSame('Platinum', $rankData['current_rank']->name);
+        $this->assertSame(Rank::where('name', 'Ruby')->value('required_full_team_business'), $rankData['next_rank']->required_full_team_business);
+
+        $this->memberSession($member);
+        $this->get(route('member.reports.rank-achievement'))->assertOk()->assertSeeText('25500');
     }
 
     public function test_member_report_routes_require_member_context(): void

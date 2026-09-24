@@ -106,10 +106,12 @@ class ReportController extends Controller
         $query = $this->rankAchievementQuery($request);
         $totalAmount = (clone $query)->sum('qualifying_business_amount');
         $achievements = $query->latest('achieved_at')->paginate(10)->withQueryString();
+        $ranks = \App\Models\Rank::query()->where('is_active', true)->orderBy('sort_order')->get();
 
         return view('admin.reports.rank-achievement', [
             'achievements' => $achievements,
             'totalAmount' => $totalAmount,
+            'ranks' => $ranks,
         ]);
     }
 
@@ -142,6 +144,13 @@ class ReportController extends Controller
         if ($request->filled('member_id')) {
             $memberId = trim((string) $request->query('member_id'));
             $query->where('member_id', 'like', '%' . $memberId . '%');
+        }
+
+        if ($request->filled('rank_id')) {
+            $rankId = trim((string) $request->query('rank_id'));
+            if ($rankId !== '') {
+                $query->where('rank_id', $rankId);
+            }
         }
 
         if ($request->filled('from_date')) {

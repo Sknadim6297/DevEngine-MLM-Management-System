@@ -108,6 +108,19 @@ class RoiGenerationService
                     '30',
                     self::MONEY_SCALE
                 );
+
+                $daysToCap = (int) max(0, (float) ceil((float) bcdiv($cap, $dailyIncome, 8)));
+                $investmentAgeInDays = $investmentDate->diffInDays($businessDate, false);
+                if ($investmentAgeInDays >= $daysToCap && bccomp($combinedIncome, $cap, self::MONEY_SCALE) < 0) {
+                    $investment->update([
+                        'status' => 'expired',
+                        'closed_at' => $businessDate->toDateTimeString(),
+                        'closing_amount' => $cap,
+                    ]);
+
+                    return 'expired';
+                }
+
                 $incomeAmount = bccomp($dailyIncome, $remainingCap, self::MONEY_SCALE) > 0
                     ? $remainingCap
                     : $dailyIncome;

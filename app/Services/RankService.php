@@ -13,24 +13,10 @@ class RankService
 {
     private const MONEY_SCALE = 4;
 
-    public function calculateForMember(Member|string $member): array
+    public function calculateForMember(Member|string $member, ?string $fromDate = null, ?string $toDate = null): array
     {
         $memberId = $member instanceof Member ? $member->member_id : $member;
-        return $this->calculateForMembers([$memberId])[$memberId];
-    }
-
-    public function highestQualifiedRank(Member $member): ?Rank
-    {
-        $rankData = $this->calculateForMember($member);
-        $qualifiedRank = null;
-
-        foreach (Rank::query()->where('is_active', true)->orderBy('sort_order')->get() as $rank) {
-            if (bccomp($rankData['full_team_business'], (string) $rank->required_full_team_business, self::MONEY_SCALE) >= 0) {
-                $qualifiedRank = $rank;
-            }
-        }
-
-        return $qualifiedRank;
+        return $this->calculateForMembers([$memberId], $fromDate, $toDate)[$memberId];
     }
 
     public function syncMemberRankAchievement(Member $member): ?RankAchievement
@@ -87,7 +73,7 @@ class RankService
         }
     }
 
-    public function calculateForMembers(array $memberIds): array
+    public function calculateForMembers(array $memberIds, ?string $fromDate = null, ?string $toDate = null): array
     {
         $members = Member::query()
             ->select(['member_id', 'sponsor_id'])
@@ -104,15 +90,25 @@ class RankService
         $allDownlineIds = [];
         $downlineIdsByMember = [];
         foreach ($memberIds as $memberId) {
-            $downlineIdsByMember[$memberId] = $this->downlineIds($memberId, $childrenBySponsor);
+            $downlineIdsByMember[$memberId] = array_values(array_unique(array_merge([$memberId], $this->downlineIds($memberId, $childrenBySponsor))));
             $allDownlineIds = array_merge($allDownlineIds, $downlineIdsByMember[$memberId]);
         }
 
         $allDownlineIds = array_values(array_unique($allDownlineIds));
-        $businessByMember = Investment::query()
+        $businessQuery = Investment::query()
             ->whereIn('member_id', $allDownlineIds)
             ->where('status', 'active')
-            ->where('amount', '>=', 100)
+            ->where('amount', '>=', 100);
+
+        if ($fromDate !== null && $fromDate !== '') {
+            $businessQuery->whereDate('created_at', '>=', $fromDate);
+        }
+
+        if ($toDate !== null && $toDate !== '') {
+            $businessQuery->whereDate('created_at', '<=', $toDate);
+        }
+
+        $businessByMember = (clone $businessQuery)
             ->selectRaw('member_id, SUM(amount) as business')
             ->groupBy('member_id')
             ->pluck('business', 'member_id');
@@ -120,9 +116,10 @@ class RankService
         $ranks = Rank::query()->where('is_active', true)->orderBy('sort_order')->get();
         $results = [];
         foreach ($memberIds as $memberId) {
+            $teamMemberIds = $downlineIdsByMember[$memberId];
             $fullTeamBusiness = '0.0000';
-            foreach ($downlineIdsByMember[$memberId] as $downlineId) {
-                $fullTeamBusiness = bcadd($fullTeamBusiness, (string) ($businessByMember->get($downlineId, '0.0000')), self::MONEY_SCALE);
+            foreach ($teamMemberIds as $teamMemberId) {
+                $fullTeamBusiness = bcadd($fullTeamBusiness, (string) ($businessByMember->get($teamMemberId, '0.0000')), self::MONEY_SCALE);
             }
 
             $currentRank = null;
@@ -147,7 +144,7 @@ class RankService
                 'next_rank' => $nextRank,
                 'remaining_business' => $remainingBusiness,
                 'rank_progress' => $progress,
-                'team_member_ids' => $downlineIdsByMember[$memberId],
+                'team_member_ids' => $teamMemberIds,
             ];
         }
 

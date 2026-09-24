@@ -31,39 +31,42 @@ class RankAdvance extends Command
             $currentRank = $member->rank()->first();
             $calculation = $rankService->calculateForMember($member);
             $fullTeamBusiness = (string) $calculation['full_team_business'];
-            $highestQualifiedRank = $rankService->highestQualifiedRank($member);
+            $qualifiedRank = $calculation['current_rank'];
+            $nextRank = $this->nextRank($currentRank);
 
             if ($currentRank === null) {
-                $nextRank = $this->firstRank();
-
-                if ($nextRank === null || bccomp($fullTeamBusiness, (string) $nextRank->required_full_team_business, 4) < 0) {
+                if ($nextRank === null) {
                     $member->forceFill(['rank_id' => null])->saveQuietly();
                     continue;
                 }
 
-                $this->promoteMember($member, $nextRank, $fullTeamBusiness);
-                continue;
-            }
+                if (bccomp($fullTeamBusiness, (string) $nextRank->required_full_team_business, 4) >= 0) {
+                    $this->recordPromotion($member, $nextRank, $fullTeamBusiness);
+                    continue;
+                }
 
-            $nextRank = $this->nextRank($currentRank);
-            if ($nextRank !== null && bccomp($fullTeamBusiness, (string) $nextRank->required_full_team_business, 4) >= 0) {
-                $this->promoteMember($member, $nextRank, $fullTeamBusiness);
-                continue;
-            }
-
-            if ($highestQualifiedRank === null) {
                 $member->forceFill(['rank_id' => null])->saveQuietly();
-                $this->line(sprintf('%s | Current Rank: %s | Business: %s | Status: Rank cleared', $memberId, $currentRank->name, $fullTeamBusiness));
                 continue;
             }
 
-            if ($currentRank->id !== $highestQualifiedRank->id) {
-                $member->forceFill(['rank_id' => $highestQualifiedRank->id])->saveQuietly();
-                $this->line(sprintf('%s | Current Rank: %s | Reconciled Rank: %s | Status: Reconciled to highest qualified rank', $memberId, $currentRank->name, $highestQualifiedRank->name));
+            if ($nextRank !== null && bccomp($fullTeamBusiness, (string) $nextRank->required_full_team_business, 4) >= 0) {
+                $this->recordPromotion($member, $nextRank, $fullTeamBusiness);
                 continue;
             }
 
-            $member->forceFill(['rank_id' => $highestQualifiedRank->id])->saveQuietly();
+            if ($qualifiedRank !== null && $qualifiedRank->id !== $currentRank->id) {
+                $member->forceFill(['rank_id' => $qualifiedRank->id])->saveQuietly();
+                $this->line(sprintf('%s | Current Rank: %s | Qualified Rank: %s | Business: %s | Status: Reconciled to qualified rank', $memberId, $currentRank->name, $qualifiedRank->name, $fullTeamBusiness));
+                continue;
+            }
+
+            if ($qualifiedRank === null) {
+                $member->forceFill(['rank_id' => null])->saveQuietly();
+                $this->line(sprintf('%s | Current Rank: %s | Business: %s | Status: Demoted to unranked', $memberId, $currentRank->name, $fullTeamBusiness));
+                continue;
+            }
+
+            $member->forceFill(['rank_id' => $qualifiedRank->id])->saveQuietly();
         }
 
         $this->info('Rank reconciliation completed for ' . $processed . ' member(s).');
@@ -71,7 +74,7 @@ class RankAdvance extends Command
         return self::SUCCESS;
     }
 
-    private function promoteMember(Member $member, Rank $nextRank, string $fullTeamBusiness): void
+    private function recordPromotion(Member $member, Rank $nextRank, string $fullTeamBusiness): void
     {
         $alreadyAchieved = RankAchievement::query()
             ->where('member_id', $member->member_id)
@@ -89,6 +92,7 @@ class RankAdvance extends Command
         }
 
         $member->forceFill(['rank_id' => $nextRank->id])->saveQuietly();
+        $this->info(sprintf('%s | %s -> %s | Business: %s | Status: Advanced one step', $member->member_id, $member->rank?->name ?? 'Unranked', $nextRank->name, $fullTeamBusiness));
     }
 
     private function nextRank(?Rank $currentRank): ?Rank
@@ -108,19 +112,10 @@ class RankAdvance extends Command
         return null;
     }
 
-    private function firstRank(): ?Rank
-    {
-        return Rank::query()->where('is_active', true)->orderBy('sort_order')->first();
-    }
-
     private function memberIds(): array
     {
         $selected = trim((string) $this->option('member-id'));
 
-        if ($selected !== '') {
-            return [$selected];
-        }
-
-        return Member::query()->pluck('member_id')->all();
+        return $selected !== '' ? [$selected] : Member::query()->pluck('member_id')->all();
     }
 }

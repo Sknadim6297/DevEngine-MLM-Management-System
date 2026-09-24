@@ -19,6 +19,8 @@ class Investment extends Model
         'closing_amount',
         'status',
         'closed_at',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [

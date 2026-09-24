@@ -153,6 +153,58 @@ class RankAchievementReportTest extends TestCase
             ->assertSeeText('15000');
     }
 
+    public function test_rank_filter_returns_only_selected_rank_and_works_with_date_range_for_admin(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+        $admin = User::factory()->create(['is_admin' => true]);
+        $this->actingAs($admin);
+
+        $silverMember = $this->member('RANKF003', 'ST666666');
+        $goldMember = $this->member('RANKF004', 'ST666666');
+        $this->rankAchievementFor($silverMember, 'Silver', '4500.0000', '2026-09-10');
+        $this->rankAchievementFor($goldMember, 'Gold', '12000.0000', '2026-09-12');
+
+        $silverRankId = Rank::where('name', 'Silver')->value('id');
+        $goldRankId = Rank::where('name', 'Gold')->value('id');
+
+        $this->get(route('admin.report.rank-achievement', [
+            'rank_id' => $silverRankId,
+            'from_date' => '2026-09-01',
+            'to_date' => '2026-09-30',
+        ]))->assertOk()->assertSeeText($silverMember->member_id)->assertDontSeeText($goldMember->member_id);
+
+        $this->get(route('admin.report.rank-achievement', ['rank_id' => $goldRankId]))
+            ->assertOk()
+            ->assertSeeText($goldMember->member_id)
+            ->assertDontSeeText($silverMember->member_id);
+    }
+
+    public function test_member_rank_filter_is_scoped_to_member_ownership_and_preserves_pagination_state(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+        $member = $this->member('RANKF005', 'ST666666');
+        $other = $this->member('RANKF006', 'ST666666');
+        session(['member_context_id' => $member->member_id]);
+
+        $this->rankAchievementFor($member, 'Silver', '5000.0000', '2026-09-01');
+        $this->rankAchievementFor($member, 'Gold', '12000.0000', '2026-09-15');
+        $this->rankAchievementFor($other, 'Gold', '25000.0000', '2026-09-20');
+
+        $silverRankId = Rank::where('name', 'Silver')->value('id');
+        $goldRankId = Rank::where('name', 'Gold')->value('id');
+
+        $this->get(route('member.reports.rank-achievement', ['rank_id' => $silverRankId]))
+            ->assertOk()
+            ->assertSeeText($member->member_id)
+            ->assertDontSeeText($other->member_id);
+
+        $this->get(route('member.reports.rank-achievement', [
+            'rank_id' => $goldRankId,
+            'from_date' => '2026-09-10',
+            'to_date' => '2026-09-30',
+        ]))->assertOk()->assertSeeText($member->member_id)->assertDontSeeText($other->member_id);
+    }
+
     public function test_unauthenticated_users_cannot_access_rank_achievement_report(): void
     {
         $this->get(route('admin.report.rank-achievement'))->assertRedirect(route('login'));
@@ -341,35 +393,27 @@ class RankAchievementReportTest extends TestCase
         $this->seed(\Database\Seeders\RankSeeder::class);
 
         $member = $this->member('RANKI001', 'ST666666');
-        $businessDate = CarbonImmutable::now('Asia/Kolkata')->startOfDay();
-        $createdAt = $businessDate->subDays(2)->startOfDay();
+        $createdAt = CarbonImmutable::now('Asia/Kolkata')->subDays(5000)->startOfDay();
 
-        $investment = Investment::query()->make([
+        $investment = Investment::query()->create([
             'investment_id' => 'INV-RANKI-01',
             'member_id' => $member->member_id,
             'member_name' => $member->member_name,
             'amount' => '100.0000',
             'status' => 'active',
-        ]);
-        $investment->forceFill([
             'created_at' => $createdAt,
             'updated_at' => $createdAt,
-        ])->saveQuietly();
-
-        \App\Models\RoiTransaction::query()->create([
-            'reference' => 'PRE-EXPIRE-001',
-            'investment_id' => $investment->investment_id,
-            'member_id' => $member->member_id,
-            'member_name' => $member->member_name,
-            'on_amount' => '100.0000',
-            'rate_percentage' => '5',
-            'income_amount' => '299.9000',
-            'roi_date' => $businessDate->subDay()->toDateString(),
-            'status' => 'generated',
-            'withdrawable_on' => $businessDate->addMonthNoOverflow()->startOfMonth()->toDateString(),
         ]);
 
-        app(\App\Services\RoiGenerationService::class)->generateForDate($businessDate);
+        $service = app(\App\Services\RoiGenerationService::class);
+        $date = $createdAt->addDay();
+
+        for ($day = 0; $day < 5000; $day++) {
+            $service->generateForDate($date->addDays($day));
+            if ($investment->fresh()->status === 'expired') {
+                break;
+            }
+        }
 
         $investment->refresh();
         $this->assertSame('expired', $investment->status);

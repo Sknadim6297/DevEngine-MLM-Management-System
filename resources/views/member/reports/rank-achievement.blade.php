@@ -22,6 +22,17 @@
                            placeholder="Enter Member ID">
                 </div>
 
+                <div class="col-md-2 mb-3">
+                    <label>Rank</label>
+
+                    <select name="rank_id" class="form-control">
+                        <option value="">All Rank</option>
+                        @foreach ($ranks as $rank)
+                            <option value="{{ $rank->id }}" @selected((string) request('rank_id') === (string) $rank->id)>{{ $rank->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="col-md-3 mb-3">
                     <label>From Date</label>
 
@@ -87,7 +98,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center">No rank achievements found.</td>
+                            <td colspan="5" class="text-center table-empty-state">No rank achievements found.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -95,18 +95,18 @@ class ReportController extends Controller
     {
         $member = $this->currentMember($request);
         $query = $this->rankAchievementQuery($member, $request);
-        $rankData = $rankService->calculateForMember($member);
-        $teamBusinessQuery = Investment::query()
-            ->whereIn('member_id', $rankData['team_member_ids'])
-            ->where('status', 'active')
-            ->where('amount', '>=', 100);
-
-        $this->applyDateFilters($teamBusinessQuery, $request);
+        $rankData = $rankService->calculateForMember(
+            $member,
+            $request->query('from_date'),
+            $request->query('to_date')
+        );
+        $ranks = \App\Models\Rank::query()->where('is_active', true)->orderBy('sort_order')->get();
 
         return view('member.reports.rank-achievement', [
             'member' => $member,
             'achievements' => $query->latest('achieved_at')->paginate(10)->withQueryString(),
-            'totalAmount' => (clone $teamBusinessQuery)->sum('amount'),
+            'totalAmount' => $rankData['full_team_business'],
+            'ranks' => $ranks,
         ]);
     }
 
@@ -145,6 +145,13 @@ class ReportController extends Controller
         if ($request->filled('member_id')) {
             $memberId = trim((string) $request->query('member_id'));
             $query->where('member_id', 'like', '%' . $memberId . '%');
+        }
+
+        if ($request->filled('rank_id')) {
+            $rankId = trim((string) $request->query('rank_id'));
+            if ($rankId !== '') {
+                $query->where('rank_id', $rankId);
+            }
         }
 
         if ($request->filled('from_date')) {
