@@ -717,7 +717,7 @@ body.sidebar-collapsed .main-wrapper {
 .wide-data-table {
     width: max-content;
     min-width: 100%;
-    max-width: 100%;
+    max-width: none;
     margin-bottom: 0;
     white-space: normal;
     font-size: 13px;
@@ -1340,7 +1340,7 @@ body.sidebar-collapsed .main-wrapper {
     .table-responsive table {
         width: max-content;
         min-width: 100%;
-        max-width: 100%;
+        max-width: none;
         margin-bottom: 0;
         height: auto;
         table-layout: auto;

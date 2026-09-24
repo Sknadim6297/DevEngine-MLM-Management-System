@@ -153,6 +153,55 @@ class RankAchievementReportTest extends TestCase
             ->assertSeeText('15000');
     }
 
+    public function test_admin_searched_member_total_uses_own_and_complete_active_downline_business(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+        $admin = User::factory()->create(['is_admin' => true]);
+        $this->actingAs($admin);
+
+        $member = $this->member('ST123457', 'ST666666');
+        $downline = $this->member('ST123458', $member->member_id);
+
+        Investment::query()->create([
+            'investment_id' => 'INV355682',
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'amount' => '3000.0000',
+            'status' => 'active',
+            'created_at' => '2026-09-24 10:00:00',
+        ]);
+        Investment::query()->create([
+            'investment_id' => 'INV-DOWNLINE-01',
+            'member_id' => $downline->member_id,
+            'member_name' => $downline->member_name,
+            'amount' => '25750.0000',
+            'status' => 'active',
+            'created_at' => '2026-09-24 11:00:00',
+        ]);
+        Investment::query()->create([
+            'investment_id' => 'INV-EXPIRED-01',
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'amount' => '9000.0000',
+            'status' => 'expired',
+            'created_at' => '2026-09-24 12:00:00',
+        ]);
+        Investment::query()->create([
+            'investment_id' => 'INV-OUTSIDE-DATE-01',
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'amount' => '5000.0000',
+            'status' => 'active',
+            'created_at' => '2026-09-23 12:00:00',
+        ]);
+
+        $this->get(route('admin.report.rank-achievement', [
+            'member_id' => $member->member_id,
+            'from_date' => '2026-09-24',
+            'to_date' => '2026-09-24',
+        ]))->assertOk()->assertSeeText('28750');
+    }
+
     public function test_rank_filter_returns_only_selected_rank_and_works_with_date_range_for_admin(): void
     {
         $this->seed(\Database\Seeders\RankSeeder::class);
@@ -386,6 +435,61 @@ class RankAchievementReportTest extends TestCase
         $this->assertSame('Gold', $member->rank->name);
         $this->assertSame(1, RankAchievement::query()->where('member_id', $member->member_id)->where('rank_id', Rank::where('name', 'Gold')->value('id'))->count());
         $this->assertSame(0, RankAchievement::query()->where('member_id', $member->member_id)->where('rank_id', Rank::where('name', 'Platinum')->value('id'))->count());
+    }
+
+    public function test_rank_advance_uses_configured_platinum_threshold_and_levels(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+
+        $platinum = Rank::where('name', 'Platinum')->firstOrFail();
+        $platinum->update([
+            'required_full_team_business' => '28000.0000',
+            'unlocked_levels' => 4,
+        ]);
+
+        $member = $this->member('RANKJ001', 'ST666666');
+        $member->forceFill(['rank_id' => Rank::where('name', 'Gold')->value('id')])->saveQuietly();
+        $child = $this->member('RANKJ002', $member->member_id);
+
+        Investment::query()->create([
+            'investment_id' => 'INV-RANKJ-01',
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'amount' => '3000.0000',
+            'status' => 'active',
+        ]);
+        Investment::query()->create([
+            'investment_id' => 'INV-RANKJ-02',
+            'member_id' => $child->member_id,
+            'member_name' => $child->member_name,
+            'amount' => '25000.0000',
+            'status' => 'active',
+        ]);
+
+        $gold = Rank::where('name', 'Gold')->firstOrFail();
+        RankAchievement::query()->create([
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'rank_id' => $gold->id,
+            'qualifying_business_amount' => '12000.0000',
+            'achieved_at' => now('Asia/Kolkata')->subDay(),
+        ]);
+
+        $this->artisan('rank:advance', ['--member-id' => $member->member_id])->assertExitCode(0);
+
+        $member->refresh();
+        $this->assertSame($platinum->id, $member->rank_id);
+        $this->assertSame(4, $member->rank->unlocked_levels);
+        $this->assertDatabaseHas('rank_achievements', [
+            'member_id' => $member->member_id,
+            'rank_id' => $gold->id,
+        ]);
+        $this->assertDatabaseHas('rank_achievements', [
+            'member_id' => $member->member_id,
+            'rank_id' => $platinum->id,
+            'qualifying_business_amount' => '28000.0000',
+        ]);
+        $this->assertSame(2, RankAchievement::query()->where('member_id', $member->member_id)->count());
     }
 
     public function test_roi_generation_marks_investment_expired_and_excludes_it_from_business(): void

@@ -104,7 +104,7 @@ class ReportController extends Controller
         $rankService->syncMemberRankAchievements(Member::query()->pluck('member_id')->all());
 
         $query = $this->rankAchievementQuery($request);
-        $totalAmount = (clone $query)->sum('qualifying_business_amount');
+        $totalAmount = $this->rankAchievementTotal($request, $rankService);
         $achievements = $query->latest('achieved_at')->paginate(10)->withQueryString();
         $ranks = \App\Models\Rank::query()->where('is_active', true)->orderBy('sort_order')->get();
 
@@ -113,6 +113,36 @@ class ReportController extends Controller
             'totalAmount' => $totalAmount,
             'ranks' => $ranks,
         ]);
+    }
+
+    protected function rankAchievementTotal(Request $request, RankService $rankService): string
+    {
+        if (! $request->filled('member_id')) {
+            return (string) RankAchievement::query()
+                ->sum('qualifying_business_amount');
+        }
+
+        $memberIds = Member::query()
+            ->where('member_id', 'like', '%' . trim((string) $request->query('member_id')) . '%')
+            ->pluck('member_id')
+            ->all();
+
+        if ($memberIds === []) {
+            return '0.0000';
+        }
+
+        $calculations = $rankService->calculateForMembers(
+            $memberIds,
+            $request->query('from_date'),
+            $request->query('to_date')
+        );
+
+        $total = '0.0000';
+        foreach ($calculations as $calculation) {
+            $total = bcadd($total, (string) $calculation['full_team_business'], 4);
+        }
+
+        return $total;
     }
 
     protected function roiQuery(Request $request)
