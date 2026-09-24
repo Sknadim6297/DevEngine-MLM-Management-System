@@ -250,6 +250,132 @@ class RankAchievementReportTest extends TestCase
         $this->assertSame(0, RankAchievement::query()->where('member_id', $member->member_id)->where('rank_id', Rank::where('name', 'Master Blaster')->value('id'))->count());
     }
 
+    public function test_rank_advance_reconciles_downgrade_when_business_is_lost_and_keeps_history(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+
+        $member = $this->member('RANKG001', 'ST666666');
+        $member->forceFill(['rank_id' => Rank::where('name', 'Gold')->value('id')])->saveQuietly();
+
+        $left = $this->member('RANKG002', $member->member_id);
+        $right = $this->member('RANKG003', $member->member_id);
+
+        Investment::query()->create([
+            'investment_id' => 'INV-RANKG-01',
+            'member_id' => $left->member_id,
+            'member_name' => $left->member_name,
+            'amount' => '8000.0000',
+            'status' => 'active',
+        ]);
+        Investment::query()->create([
+            'investment_id' => 'INV-RANKG-02',
+            'member_id' => $right->member_id,
+            'member_name' => $right->member_name,
+            'amount' => '6000.0000',
+            'status' => 'active',
+        ]);
+
+        $goldRankId = Rank::where('name', 'Gold')->value('id');
+        RankAchievement::query()->create([
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'rank_id' => $goldRankId,
+            'qualifying_business_amount' => '14000.0000',
+            'achieved_at' => now('Asia/Kolkata')->subDay(),
+        ]);
+
+        $left->refresh();
+        $left->update(['status' => 'inactive']);
+        $left->investments()->update(['status' => 'expired']);
+
+        $business = app(RankService::class)->calculateForMember($member);
+        $this->assertSame('6000.0000', $business['full_team_business']);
+        $this->assertSame('Silver', $business['current_rank']->name);
+
+        $this->artisan('rank:advance', ['--member-id' => $member->member_id])->assertExitCode(0);
+
+        $member->refresh();
+        $this->assertSame('Silver', $member->rank->name);
+        $this->assertDatabaseHas('rank_achievements', [
+            'member_id' => $member->member_id,
+            'rank_id' => $goldRankId,
+        ]);
+        $this->assertSame(1, RankAchievement::query()->where('member_id', $member->member_id)->where('rank_id', $goldRankId)->count());
+    }
+
+    public function test_rank_advance_promotes_one_rank_only_when_next_threshold_is_met(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+
+        $member = $this->member('RANKH001', 'ST666666');
+        $member->forceFill(['rank_id' => Rank::where('name', 'Silver')->value('id')])->saveQuietly();
+
+        $left = $this->member('RANKH002', $member->member_id);
+        $right = $this->member('RANKH003', $member->member_id);
+
+        Investment::query()->create([
+            'investment_id' => 'INV-RANKH-01',
+            'member_id' => $left->member_id,
+            'member_name' => $left->member_name,
+            'amount' => '15000.0000',
+            'status' => 'active',
+        ]);
+        Investment::query()->create([
+            'investment_id' => 'INV-RANKH-02',
+            'member_id' => $right->member_id,
+            'member_name' => $right->member_name,
+            'amount' => '15000.0000',
+            'status' => 'active',
+        ]);
+
+        $this->artisan('rank:advance', ['--member-id' => $member->member_id])->assertExitCode(0);
+
+        $member->refresh();
+        $this->assertSame('Gold', $member->rank->name);
+        $this->assertSame(1, RankAchievement::query()->where('member_id', $member->member_id)->where('rank_id', Rank::where('name', 'Gold')->value('id'))->count());
+        $this->assertSame(0, RankAchievement::query()->where('member_id', $member->member_id)->where('rank_id', Rank::where('name', 'Platinum')->value('id'))->count());
+    }
+
+    public function test_roi_generation_marks_investment_expired_and_excludes_it_from_business(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+
+        $member = $this->member('RANKI001', 'ST666666');
+        $businessDate = CarbonImmutable::now('Asia/Kolkata')->startOfDay();
+        $createdAt = $businessDate->subDays(2)->startOfDay();
+
+        $investment = Investment::query()->make([
+            'investment_id' => 'INV-RANKI-01',
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'amount' => '100.0000',
+            'status' => 'active',
+        ]);
+        $investment->forceFill([
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ])->saveQuietly();
+
+        \App\Models\RoiTransaction::query()->create([
+            'reference' => 'PRE-EXPIRE-001',
+            'investment_id' => $investment->investment_id,
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'on_amount' => '100.0000',
+            'rate_percentage' => '5',
+            'income_amount' => '299.9000',
+            'roi_date' => $businessDate->subDay()->toDateString(),
+            'status' => 'generated',
+            'withdrawable_on' => $businessDate->addMonthNoOverflow()->startOfMonth()->toDateString(),
+        ]);
+
+        app(\App\Services\RoiGenerationService::class)->generateForDate($businessDate);
+
+        $investment->refresh();
+        $this->assertSame('expired', $investment->status);
+        $this->assertSame('0.0000', app(RankService::class)->calculateForMember($member)['full_team_business']);
+    }
+
     private function member(string $id, string $sponsorId): Member
     {
         return Member::create([

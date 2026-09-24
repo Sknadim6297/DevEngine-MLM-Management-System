@@ -19,6 +19,20 @@ class RankService
         return $this->calculateForMembers([$memberId])[$memberId];
     }
 
+    public function highestQualifiedRank(Member $member): ?Rank
+    {
+        $rankData = $this->calculateForMember($member);
+        $qualifiedRank = null;
+
+        foreach (Rank::query()->where('is_active', true)->orderBy('sort_order')->get() as $rank) {
+            if (bccomp($rankData['full_team_business'], (string) $rank->required_full_team_business, self::MONEY_SCALE) >= 0) {
+                $qualifiedRank = $rank;
+            }
+        }
+
+        return $qualifiedRank;
+    }
+
     public function syncMemberRankAchievement(Member $member): ?RankAchievement
     {
         $rankData = $this->calculateForMember($member);
