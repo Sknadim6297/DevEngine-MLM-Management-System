@@ -550,6 +550,7 @@
                 Route::get('/roi/export', 'exportRoiReport')->name('roi.export');
                 Route::get('/level-income', 'levelIncomeReport')->name('level-income');
                 Route::get('/level-income/export', 'exportLevelIncomeReport')->name('level-income.export');
+                Route::get('/rank-achievement', 'rankAchievementReport')->name('rank-achievement');
             });
 
         Route::controller(InvestController::class)

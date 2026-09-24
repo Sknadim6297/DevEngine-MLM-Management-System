@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
+use App\Models\Investment;
 use App\Models\LevelCommissionTransaction;
 use App\Models\Member;
+use App\Models\RankAchievement;
 use App\Models\RoiTransaction;
 use App\Services\RankService;
 use Illuminate\Http\Request;
@@ -87,6 +89,25 @@ class ReportController extends Controller
         });
     }
 
+    public function rankAchievementReport(Request $request, RankService $rankService): View
+    {
+        $member = $this->currentMember($request);
+        $query = $this->rankAchievementQuery($member, $request);
+        $rankData = $rankService->calculateForMember($member);
+        $teamBusinessQuery = Investment::query()
+            ->whereIn('member_id', $rankData['team_member_ids'])
+            ->where('status', 'active')
+            ->where('amount', '>=', 100);
+
+        $this->applyDateFilters($teamBusinessQuery, $request);
+
+        return view('member.reports.rank-achievement', [
+            'member' => $member,
+            'achievements' => $query->latest('achieved_at')->paginate(10)->withQueryString(),
+            'totalAmount' => (clone $teamBusinessQuery)->sum('amount'),
+        ]);
+    }
+
     private function roiQuery(Member $member, Request $request)
     {
         $query = RoiTransaction::query()
@@ -108,6 +129,28 @@ class ReportController extends Controller
 
         if ($request->filled('level')) {
             $query->where('level', $request->query('level'));
+        }
+
+        return $query;
+    }
+
+    private function rankAchievementQuery(Member $member, Request $request)
+    {
+        $query = RankAchievement::query()
+            ->where('member_id', $member->member_id)
+            ->with('rank');
+
+        if ($request->filled('member_id')) {
+            $memberId = trim((string) $request->query('member_id'));
+            $query->where('member_id', 'like', '%' . $memberId . '%');
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('achieved_at', '>=', $request->query('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('achieved_at', '<=', $request->query('to_date'));
         }
 
         return $query;

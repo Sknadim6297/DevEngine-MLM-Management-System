@@ -10,8 +10,12 @@ use Illuminate\View\View;
 
 class ComingSoonController extends Controller
 {
-    public function show(Request $request, string $feature): View
+    public function show(Request $request, string $feature): View|\Illuminate\Http\RedirectResponse
     {
+        if ($feature === 'rank-achievement-report') {
+            return redirect()->route('member.reports.rank-achievement');
+        }
+
         return view('member.coming-soon', [
             'member' => Member::where('member_id', $request->session()->get('member_context_id'))->firstOrFail(),
             'feature' => Str::headline($feature),

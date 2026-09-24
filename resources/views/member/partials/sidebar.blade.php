@@ -228,7 +228,7 @@
                 <span>Salary</span>
             </a>
 
-            <a href="{{ route('member.coming-soon', ['feature' => 'rank-achievement-report']) }}">
+            <a href="{{ route('member.reports.rank-achievement') }}">
                 <i class="bi bi-bar-chart"></i>
                 <span>Rank Achievement Report</span>
             </a>
