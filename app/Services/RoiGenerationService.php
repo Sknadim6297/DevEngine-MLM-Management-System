@@ -20,13 +20,18 @@ class RoiGenerationService
 
     private const MONEY_SCALE = 4;
 
-    public function generateForDate(CarbonImmutable $businessDate): array
+    public function generateForDate(CarbonImmutable $businessDate, ?string $investmentPrefix = null): array
     {
         $businessDate = $businessDate->setTimezone(self::TIMEZONE)->startOfDay();
         $result = ['generated' => 0, 'expired' => 0, 'skipped' => 0];
 
-        Investment::query()
-            ->where('status', 'active')
+        $query = Investment::query()->where('status', 'active');
+
+        if ($investmentPrefix !== null && $investmentPrefix !== '') {
+            $query->where('investment_id', 'like', $investmentPrefix . '%');
+        }
+
+        $query
             ->orderBy('id')
             ->chunkById(100, function ($investments) use ($businessDate, &$result) {
                 foreach ($investments as $investment) {

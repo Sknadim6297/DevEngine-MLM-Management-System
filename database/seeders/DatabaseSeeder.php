@@ -26,5 +26,9 @@ class DatabaseSeeder extends Seeder
 
         $this->call(RankSeeder::class);
         $this->call(CleanProductionSeeder::class);
+
+        if (app()->environment(['local', 'testing'])) {
+            $this->call(AishaGenealogySeeder::class);
+        }
     }
 }

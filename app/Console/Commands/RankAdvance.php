@@ -7,115 +7,144 @@ use App\Models\Rank;
 use App\Models\RankAchievement;
 use App\Services\RankService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RankAdvance extends Command
 {
-    protected $signature = 'rank:advance {--member-id= : Limit the one-step advancement to a specific member}';
+    protected $signature = 'rank:advance {--member-id= : Limit the one-step advancement to a specific member} {--member-prefix= : Limit processing to a member ID prefix}';
 
     protected $description = 'Advance each qualifying demo member by exactly one rank using the real rank rules.';
 
     public function handle(RankService $rankService): int
     {
+        $startedAt = microtime(true);
+        Log::info('Scheduled rank advancement started.');
+
         $memberIds = $this->memberIds();
-        $processed = 0;
-
-        foreach ($memberIds as $memberId) {
-            $member = Member::query()->where('member_id', $memberId)->first();
-
-            if (! $member) {
-                $this->warn("{$memberId} does not exist. Skipping.");
-                continue;
-            }
-
-            $processed++;
-            $currentRank = $member->rank()->first();
-            $calculation = $rankService->calculateForMember($member);
-            $fullTeamBusiness = (string) $calculation['full_team_business'];
-            $qualifiedRank = $calculation['current_rank'];
-            $nextRank = $this->nextRank($currentRank);
-
-            if ($currentRank === null) {
-                if ($nextRank === null) {
-                    $member->forceFill(['rank_id' => null])->saveQuietly();
-                    continue;
-                }
-
-                if (bccomp($fullTeamBusiness, (string) $nextRank->required_full_team_business, 4) >= 0) {
-                    $this->recordPromotion($member, $nextRank, $fullTeamBusiness);
-                    continue;
-                }
-
-                $member->forceFill(['rank_id' => null])->saveQuietly();
-                continue;
-            }
-
-            if ($nextRank !== null && bccomp($fullTeamBusiness, (string) $nextRank->required_full_team_business, 4) >= 0) {
-                $this->recordPromotion($member, $nextRank, $fullTeamBusiness);
-                continue;
-            }
-
-            if ($qualifiedRank !== null && $qualifiedRank->id !== $currentRank->id) {
-                $member->forceFill(['rank_id' => $qualifiedRank->id])->saveQuietly();
-                $this->line(sprintf('%s | Current Rank: %s | Qualified Rank: %s | Business: %s | Status: Reconciled to qualified rank', $memberId, $currentRank->name, $qualifiedRank->name, $fullTeamBusiness));
-                continue;
-            }
-
-            if ($qualifiedRank === null) {
-                $member->forceFill(['rank_id' => null])->saveQuietly();
-                $this->line(sprintf('%s | Current Rank: %s | Business: %s | Status: Demoted to unranked', $memberId, $currentRank->name, $fullTeamBusiness));
-                continue;
-            }
-
-            $member->forceFill(['rank_id' => $qualifiedRank->id])->saveQuietly();
+        if ($memberIds === []) {
+            $this->info('Rank reconciliation completed for 0 member(s).');
+            return self::SUCCESS;
         }
 
-        $this->info('Rank reconciliation completed for ' . $processed . ' member(s).');
+        $startedAt = microtime(true);
+        $members = Member::query()
+            ->whereIn('member_id', $memberIds)
+            ->get(['member_id', 'member_name', 'rank_id']);
+        $memberIds = $members->pluck('member_id')->all();
+        $ranks = Rank::query()->orderBy('sort_order')->get()->keyBy('id');
+        $activeRanks = $ranks->where('is_active', true)->values();
+        $calculations = $rankService->calculateForMembers($memberIds);
+        $nextRankByCurrentRank = $this->nextRanks($activeRanks);
+        $achievementKeys = RankAchievement::query()
+            ->whereIn('member_id', $memberIds)
+            ->get(['member_id', 'rank_id'])
+            ->mapWithKeys(fn (RankAchievement $achievement): array => [$this->achievementKey($achievement->member_id, $achievement->rank_id) => true]);
+        $rankUpdates = [];
+        $newAchievements = [];
+        $changed = 0;
+
+        foreach ($members as $member) {
+            $memberId = $member->member_id;
+            $calculation = $calculations[$memberId];
+            $fullTeamBusiness = (string) $calculation['full_team_business'];
+            $qualifiedRank = $calculation['current_rank'];
+            $currentRank = $member->rank_id !== null ? $ranks->get($member->rank_id) : null;
+            $nextRank = $currentRank ? ($nextRankByCurrentRank[$currentRank->id] ?? null) : $activeRanks->first();
+            $desiredRankId = $currentRank?->id;
+
+            if ($currentRank === null) {
+                if ($nextRank !== null && bccomp($fullTeamBusiness, (string) $nextRank->required_full_team_business, 4) >= 0) {
+                    $desiredRankId = $nextRank->id;
+                    $this->queueAchievement($newAchievements, $achievementKeys, $member, $nextRank, $fullTeamBusiness);
+                } else {
+                    $desiredRankId = null;
+                }
+            } elseif ($nextRank !== null && bccomp($fullTeamBusiness, (string) $nextRank->required_full_team_business, 4) >= 0) {
+                $desiredRankId = $nextRank->id;
+                $this->queueAchievement($newAchievements, $achievementKeys, $member, $nextRank, $fullTeamBusiness);
+            } elseif ($qualifiedRank !== null && $qualifiedRank->id !== $currentRank->id) {
+                $desiredRankId = $qualifiedRank->id;
+            } elseif ($qualifiedRank === null) {
+                $desiredRankId = null;
+            } else {
+                $desiredRankId = $qualifiedRank->id;
+            }
+
+            if ($desiredRankId !== $member->rank_id) {
+                $rankUpdates[(string) ($desiredRankId ?? 'null')][] = $memberId;
+                $changed++;
+            }
+        }
+
+        DB::transaction(function () use ($rankUpdates, $newAchievements): void {
+            foreach ($rankUpdates as $rankId => $ids) {
+                Member::query()->whereIn('member_id', $ids)->update([
+                    'rank_id' => $rankId === 'null' ? null : (int) $rankId,
+                    'updated_at' => now(),
+                ]);
+            }
+
+            if ($newAchievements !== []) {
+                RankAchievement::query()->insert($newAchievements);
+            }
+        });
+
+        $this->info(sprintf(
+            'Rank reconciliation completed for %d member(s): %d rank updates, %d achievements, %.3f seconds.',
+            count($members), $changed, count($newAchievements), microtime(true) - $startedAt
+        ));
+        Log::info('Scheduled rank advancement finished.', ['processed' => count($members), 'rank_updates' => $changed, 'achievements' => count($newAchievements), 'duration_seconds' => round(microtime(true) - $startedAt, 3)]);
 
         return self::SUCCESS;
     }
 
-    private function recordPromotion(Member $member, Rank $nextRank, string $fullTeamBusiness): void
+    private function queueAchievement(array &$newAchievements, Collection &$achievementKeys, Member $member, Rank $rank, string $fullTeamBusiness): void
     {
-        $alreadyAchieved = RankAchievement::query()
-            ->where('member_id', $member->member_id)
-            ->where('rank_id', $nextRank->id)
-            ->exists();
-
-        if (! $alreadyAchieved) {
-            RankAchievement::query()->create([
+        $key = $this->achievementKey($member->member_id, $rank->id);
+        if (! isset($achievementKeys[$key])) {
+            $now = now('Asia/Kolkata');
+            $newAchievements[] = [
                 'member_id' => $member->member_id,
                 'member_name' => $member->member_name,
-                'rank_id' => $nextRank->id,
+                'rank_id' => $rank->id,
                 'qualifying_business_amount' => $fullTeamBusiness,
-                'achieved_at' => now('Asia/Kolkata'),
-            ]);
+                'achieved_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+            $achievementKeys[$key] = true;
         }
-
-        $member->forceFill(['rank_id' => $nextRank->id])->saveQuietly();
-        $this->info(sprintf('%s | %s -> %s | Business: %s | Status: Advanced one step', $member->member_id, $member->rank?->name ?? 'Unranked', $nextRank->name, $fullTeamBusiness));
     }
 
-    private function nextRank(?Rank $currentRank): ?Rank
+    private function achievementKey(string $memberId, int $rankId): string
     {
-        $ranks = Rank::query()->where('is_active', true)->orderBy('sort_order')->get();
+        return $memberId . ':' . $rankId;
+    }
 
-        if ($currentRank === null) {
-            return $ranks->first();
+    private function nextRanks(Collection $activeRanks): array
+    {
+        $nextRanks = [];
+        foreach ($activeRanks as $index => $rank) {
+            $nextRanks[$rank->id] = $activeRanks->get($index + 1);
         }
 
-        foreach ($ranks as $rank) {
-            if ($rank->sort_order > $currentRank->sort_order) {
-                return $rank;
-            }
-        }
-
-        return null;
+        return $nextRanks;
     }
 
     private function memberIds(): array
     {
         $selected = trim((string) $this->option('member-id'));
 
-        return $selected !== '' ? [$selected] : Member::query()->pluck('member_id')->all();
+        if ($selected !== '') {
+            return [$selected];
+        }
+
+        $prefix = trim((string) $this->option('member-prefix'));
+
+        return $prefix !== ''
+            ? Member::query()->where('member_id', 'like', $prefix . '%')->pluck('member_id')->all()
+            : Member::query()->pluck('member_id')->all();
     }
 }

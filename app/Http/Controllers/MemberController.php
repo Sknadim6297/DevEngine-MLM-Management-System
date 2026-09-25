@@ -296,7 +296,14 @@ class MemberController extends Controller
             return $member;
         });
 
-        return view($view, compact('members', 'memberName', 'memberId'));
+        $statusCounts = Member::query()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+        $activeMemberCount = (int) $statusCounts->get('active', 0);
+        $inactiveMemberCount = (int) $statusCounts->get('inactive', 0);
+
+        return view($view, compact('members', 'memberName', 'memberId', 'activeMemberCount', 'inactiveMemberCount'));
     }
 
     public function export(Request $request, string $status)

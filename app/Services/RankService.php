@@ -13,6 +13,8 @@ class RankService
 {
     private const MONEY_SCALE = 4;
 
+    private const DIRECT_MEMBER_LEVEL_FOUR_THRESHOLD = 4;
+
     public function calculateForMember(Member|string $member, ?string $fromDate = null, ?string $toDate = null): array
     {
         $memberId = $member instanceof Member ? $member->member_id : $member;
@@ -114,6 +116,18 @@ class RankService
             ->pluck('business', 'member_id');
 
         $ranks = Rank::query()->where('is_active', true)->orderBy('sort_order')->get();
+        $directQualifyingMemberCounts = Member::query()
+            ->whereIn('sponsor_id', $memberIds)
+            ->where('status', 'active')
+            ->whereHas('investments', function ($investmentQuery): void {
+                $investmentQuery
+                    ->where('status', 'active')
+                    ->where('amount', '>=', 100);
+            })
+            ->selectRaw('sponsor_id, COUNT(*) as direct_count')
+            ->groupBy('sponsor_id')
+            ->pluck('direct_count', 'sponsor_id');
+
         $results = [];
         foreach ($memberIds as $memberId) {
             $teamMemberIds = $downlineIdsByMember[$memberId];
@@ -136,19 +150,39 @@ class RankService
 
             $remainingBusiness = $nextRank === null ? '0.0000' : bcsub((string) $nextRank->required_full_team_business, $fullTeamBusiness, self::MONEY_SCALE);
             $progress = $nextRank === null ? '100.0000' : bcmul(bcdiv($fullTeamBusiness, (string) $nextRank->required_full_team_business, 8), '100', self::MONEY_SCALE);
+            $directQualifyingMemberCount = (int) $directQualifyingMemberCounts->get($memberId, 0);
+            $directMemberUnlockedLevels = $directQualifyingMemberCount >= self::DIRECT_MEMBER_LEVEL_FOUR_THRESHOLD
+                ? self::DIRECT_MEMBER_LEVEL_FOUR_THRESHOLD
+                : 0;
+
             $results[$memberId] = [
                 'member_id' => $memberId,
                 'full_team_business' => $fullTeamBusiness,
                 'current_rank' => $currentRank,
-                'unlocked_levels' => $currentRank?->unlocked_levels ?? 0,
+                'unlocked_levels' => max($currentRank?->unlocked_levels ?? 0, $directMemberUnlockedLevels),
+                'direct_qualifying_member_count' => $directQualifyingMemberCount,
                 'next_rank' => $nextRank,
                 'remaining_business' => $remainingBusiness,
                 'rank_progress' => $progress,
                 'team_member_ids' => $teamMemberIds,
             ];
+
         }
 
         return $results;
+    }
+
+    private function qualifyingDirectMemberCount(string $memberId): int
+    {
+        return Member::query()
+            ->where('sponsor_id', $memberId)
+            ->where('status', 'active')
+            ->whereHas('investments', function ($investmentQuery): void {
+                $investmentQuery
+                    ->where('status', 'active')
+                    ->where('amount', '>=', 100);
+            })
+            ->count();
     }
 
     private function downlineIds(string $rootMemberId, Collection $childrenBySponsor): array

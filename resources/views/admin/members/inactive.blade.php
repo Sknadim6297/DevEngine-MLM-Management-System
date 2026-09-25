@@ -8,6 +8,21 @@
                 <h4>Inactive Member List</h4>
             </div>
 
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="total-amount-box">
+                        <span>Active Members</span>
+                        <strong>{{ number_format($activeMemberCount) }}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="total-amount-box">
+                        <span>Inactive Members</span>
+                        <strong>{{ number_format($inactiveMemberCount) }}</strong>
+                    </div>
+                </div>
+            </div>
+
             <form method="GET" action="{{ route('admin.members.inactive') }}" class="row align-items-end mb-4">
                 <div class="col-md-4 mb-3 mb-md-0">
                     <label>Member Name <span class="text-danger">*</span></label>

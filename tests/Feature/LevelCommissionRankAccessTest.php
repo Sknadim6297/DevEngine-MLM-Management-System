@@ -58,6 +58,54 @@ class LevelCommissionRankAccessTest extends TestCase
         ]);
     }
 
+    public function test_four_qualifying_direct_members_unlock_level_four_commission(): void
+    {
+        $receiver = $this->member('NADEEM001', 'ST666666');
+
+        foreach (range(1, 4) as $number) {
+            $directMember = $this->member('NADEEMD00' . $number, $receiver->member_id);
+            $this->investment($directMember, 'INVNADEEM' . $number, '100.0000');
+        }
+
+        $firstLevelTwo = $this->member('NADEEML21', 'NADEEMD001');
+        $firstLevelThree = $this->member('NADEEML31', $firstLevelTwo->member_id);
+        $firstSource = $this->member('NADEEMS01', $firstLevelThree->member_id);
+        $firstInvestment = $this->investment($firstSource, 'INVNADEEM400', '400.0000');
+
+        $secondLevelTwo = $this->member('NADEEML22', 'NADEEMD002');
+        $secondLevelThree = $this->member('NADEEML32', $secondLevelTwo->member_id);
+        $secondSource = $this->member('NADEEMS02', $secondLevelThree->member_id);
+        $secondInvestment = $this->investment($secondSource, 'INVNADEEM450', '450.0000');
+
+        $rankData = app(\App\Services\RankService::class)->calculateForMember($receiver);
+
+        $this->assertSame(4, $rankData['direct_qualifying_member_count']);
+        $this->assertGreaterThanOrEqual(4, $rankData['unlocked_levels']);
+
+        $service = app(LevelCommissionGenerationService::class);
+        $service->generateForInvestment($firstInvestment);
+        $service->generateForInvestment($secondInvestment);
+
+        $this->assertDatabaseHas('level_commission_transactions', [
+            'investment_id' => $firstInvestment->investment_id,
+            'member_id' => $receiver->member_id,
+            'from_member_id' => $firstSource->member_id,
+            'level' => 4,
+            'on_amount' => '400.0000',
+            'rate_percentage' => '0.300',
+            'income_amount' => '1.2000',
+        ]);
+        $this->assertDatabaseHas('level_commission_transactions', [
+            'investment_id' => $secondInvestment->investment_id,
+            'member_id' => $receiver->member_id,
+            'from_member_id' => $secondSource->member_id,
+            'level' => 4,
+            'on_amount' => '450.0000',
+            'rate_percentage' => '0.300',
+            'income_amount' => '1.3500',
+        ]);
+    }
+
     private function chainToLevel(int $targetLevel): array
     {
         $target = $this->member('UP' . $targetLevel . '0', 'ST666666');

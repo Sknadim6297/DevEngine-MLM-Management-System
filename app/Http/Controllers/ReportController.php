@@ -7,6 +7,7 @@ use App\Models\Member;
 use App\Models\RankAchievement;
 use App\Models\RoiTransaction;
 use App\Services\RankService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -101,8 +102,6 @@ class ReportController extends Controller
 
     public function rankAchievementReport(Request $request, RankService $rankService)
     {
-        $rankService->syncMemberRankAchievements(Member::query()->pluck('member_id')->all());
-
         $query = $this->rankAchievementQuery($request);
         $totalAmount = $this->rankAchievementTotal($request, $rankService);
         $achievements = $query->latest('achieved_at')->paginate(10)->withQueryString();
@@ -169,7 +168,9 @@ class ReportController extends Controller
 
     protected function rankAchievementQuery(Request $request)
     {
-        $query = RankAchievement::query()->with('rank');
+        $query = RankAchievement::query()
+            ->select(['id', 'member_id', 'member_name', 'rank_id', 'achieved_at'])
+            ->with('rank:id,name');
 
         if ($request->filled('member_id')) {
             $memberId = trim((string) $request->query('member_id'));
@@ -184,11 +185,11 @@ class ReportController extends Controller
         }
 
         if ($request->filled('from_date')) {
-            $query->whereDate('achieved_at', '>=', $request->query('from_date'));
+            $query->where('achieved_at', '>=', CarbonImmutable::parse($request->query('from_date'))->startOfDay());
         }
 
         if ($request->filled('to_date')) {
-            $query->whereDate('achieved_at', '<=', $request->query('to_date'));
+            $query->where('achieved_at', '<', CarbonImmutable::parse($request->query('to_date'))->addDay()->startOfDay());
         }
 
         return $query;
