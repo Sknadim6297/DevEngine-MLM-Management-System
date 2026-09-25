@@ -603,7 +603,7 @@
         Route::get('/member/change-password/update', [SupportController::class, 'memberUpdate'])->name('member.change-password.update');
 
 
-        Route::match(['get', 'post'], '/member/logout', function (Request $request) {
+        Route::post('/member/logout', function (Request $request) {
         if ($request->user()?->is_admin === true) {
             Auth::logout();
             $request->session()->invalidate();

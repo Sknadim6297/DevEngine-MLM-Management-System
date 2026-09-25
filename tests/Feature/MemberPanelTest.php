@@ -91,15 +91,15 @@ class MemberPanelTest extends TestCase
         $this->assertDatabaseHas('members', ['member_id' => $member->member_id]);
     }
 
-    public function test_member_logout_get_request_also_clears_context(): void
+    public function test_member_logout_requires_post(): void
     {
         $member = $this->createMember('ST100005', 'Logout Member', 'logout@example.com');
         $this->withSession(['member_context_id' => $member->member_id]);
 
         $this->get(route('member.logout'))
-            ->assertRedirect(route('login'));
+            ->assertMethodNotAllowed();
 
-        $this->assertFalse(session()->has('member_context_id'));
+        $this->assertTrue(session()->has('member_context_id'));
     }
 
     private function createMember(string $memberId, string $name, string $email): Member
