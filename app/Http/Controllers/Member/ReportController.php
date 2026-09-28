@@ -125,7 +125,9 @@ class ReportController extends Controller
 
     private function levelIncomeQuery(Member $member, Request $request)
     {
-        $query = LevelCommissionTransaction::query()->where('member_id', $member->member_id);
+        $query = LevelCommissionTransaction::query()
+            ->where('member_id', $member->member_id)
+            ->select(['id', 'member_id', 'member_name', 'from_member_id', 'level', 'income_amount', 'on_amount', 'created_at']);
 
         $this->applyDateFilters($query, $request);
 
@@ -144,7 +146,9 @@ class ReportController extends Controller
 
         if ($request->filled('member_id')) {
             $memberId = trim((string) $request->query('member_id'));
-            $query->where('member_id', 'like', '%' . $memberId . '%');
+            if ($memberId !== '') {
+                $query->where('member_id', 'like', $memberId . '%');
+            }
         }
 
         if ($request->filled('rank_id')) {

@@ -274,6 +274,7 @@ class RoiGenerationTest extends TestCase
 
             $levelResponse = $this->get(route('admin.report.level-income', [
                 'member_id' => $member->member_id,
+                'per_page' => 10,
                 'page' => $page,
             ]));
 
@@ -281,5 +282,100 @@ class RoiGenerationTest extends TestCase
                 ->assertSee('<strong>22</strong>', false);
             $this->assertSame(1, substr_count($levelResponse->getContent(), 'Showing'));
         }
+    }
+
+    public function test_roi_report_summary_uses_a_single_aggregate_query_and_keeps_exact_totals(): void
+    {
+        $this->actingAs(User::factory()->create(['is_admin' => true]));
+
+        foreach (range(1, 125) as $number) {
+            RoiTransaction::create([
+                'reference' => 'ROI-PERF-' . str_pad((string) $number, 5, '0', STR_PAD_LEFT),
+                'investment_id' => 'INV-ROI-PERF-' . str_pad((string) $number, 5, '0', STR_PAD_LEFT),
+                'member_id' => 'STBENCH' . str_pad((string) (($number % 10) + 1), 4, '0', STR_PAD_LEFT),
+                'member_name' => 'Benchmark Member ' . (($number % 10) + 1),
+                'on_amount' => '100.0000',
+                'rate_percentage' => '5.000',
+                'income_amount' => (string) ($number % 17 + 1) . '.0000',
+                'roi_date' => sprintf('2026-01-%02d', (($number - 1) % 28) + 1),
+                'status' => 'generated',
+                'withdrawable_on' => '2026-02-01',
+            ]);
+        }
+
+        $queries = [];
+        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        $response = $this->get(route('admin.report.roi-report'));
+
+        $response->assertOk();
+        $this->assertStringContainsString('Showing 1 to 10 of 125 entries', $response->getContent());
+
+        $aggregateQueries = array_values(array_filter($queries, function (string $sql): bool {
+            $lower = strtolower($sql);
+
+            return str_contains($lower, 'sum(') && str_contains($lower, 'count(');
+        }));
+
+        $this->assertCount(1, $aggregateQueries);
+        $this->assertLessThanOrEqual(8, count($queries));
+    }
+
+    public function test_roi_report_filters_and_query_string_preservation_match_direct_sql(): void
+    {
+        $this->actingAs(User::factory()->create(['is_admin' => true]));
+
+        $rows = [];
+        foreach (range(1, 30) as $number) {
+            $memberId = $number % 3 === 0 ? 'STFILTER01' : 'STFILTER02';
+            $date = sprintf('2026-02-%02d', (($number - 1) % 15) + 1);
+            $createdAt = $date . ' 12:00:00';
+            $rows[] = [
+                'reference' => 'ROI-FILTER-' . str_pad((string) $number, 5, '0', STR_PAD_LEFT),
+                'investment_id' => 'INV-FILTER-' . str_pad((string) $number, 5, '0', STR_PAD_LEFT),
+                'member_id' => $memberId,
+                'member_name' => 'Filter Member ' . $memberId,
+                'on_amount' => '50.0000',
+                'rate_percentage' => '4.500',
+                'income_amount' => (string) ($number % 5 + 2) . '.0000',
+                'roi_date' => $date,
+                'status' => 'generated',
+                'withdrawable_on' => '2026-03-01',
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
+            ];
+        }
+
+        foreach (array_chunk($rows, 10) as $chunk) {
+            \Illuminate\Support\Facades\DB::table('roi_transactions')->insert($chunk);
+        }
+
+        $memberId = 'STFILTER01';
+        $fromDate = '2026-02-05';
+        $toDate = '2026-02-20';
+
+        $direct = \Illuminate\Support\Facades\DB::table('roi_transactions')
+            ->where('member_id', 'like', $memberId . '%')
+            ->where('created_at', '>=', $fromDate . ' 00:00:00')
+            ->where('created_at', '<', '2026-02-21 00:00:00')
+            ->selectRaw('COUNT(*) as total_rows, COALESCE(SUM(income_amount), 0) as total_amount')
+            ->first();
+
+        $response = $this->get(route('admin.report.roi-report', [
+            'member_id' => $memberId,
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
+            'page' => 1,
+        ]));
+
+        $response->assertOk();
+        $this->assertStringContainsString('page=1', $response->getContent());
+        $this->assertStringContainsString('member_id=' . $memberId, $response->getContent());
+        $this->assertStringContainsString('from_date=' . $fromDate, $response->getContent());
+        $this->assertStringContainsString('to_date=' . $toDate, $response->getContent());
+        $this->assertStringContainsString((string) $direct->total_rows, $response->getContent());
+        $this->assertStringContainsString((string) ((float) $direct->total_amount), $response->getContent());
     }
 }

@@ -1,0 +1,657 @@
+{
+    "dataset_rows": 100000,
+    "generated_at": "2026-09-28 09:55:26",
+    "insert_seconds": 214.911,
+    "actual_rows": 100000,
+    "last_page": 2000,
+    "deep_page": 2000,
+    "cases": {
+        "page_1": {
+            "status": 200,
+            "http_seconds": 0.673,
+            "memory_delta_bytes": 2097152,
+            "query_count": 7,
+            "output_length": 50387,
+            "slowest_query_ms": 264.07,
+            "queries": [
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.4,
+                    "bindings": [
+                        "evBZRL0Oij4AP4DAdJmpYB9sjfwxy97YNwKCxBXR"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 124.83,
+                    "bindings": []
+                },
+                {
+                    "sql": "select count(*) as aggregate from `level_commission_transactions`",
+                    "time_ms": 28.93,
+                    "bindings": []
+                },
+                {
+                    "sql": "select `id`, `member_id`, `member_name`, `from_member_id`, `level`, `income_amount`, `on_amount`, `created_at` from `level_commission_transactions` order by `created_at` desc, `id` desc limit 50",
+                    "time_ms": 169.07,
+                    "bindings": []
+                },
+                {
+                    "sql": "select distinct `level` from `level_commission_transactions` where `level` is not null order by `level` asc",
+                    "time_ms": 264.07,
+                    "bindings": []
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 1.38,
+                    "bindings": [
+                        "evBZRL0Oij4AP4DAdJmpYB9sjfwxy97YNwKCxBXR"
+                    ]
+                },
+                {
+                    "sql": "insert into `sessions` (`payload`, `last_activity`, `user_id`, `ip_address`, `user_agent`, `id`) values (?, ?, ?, ?, ?, ?)",
+                    "time_ms": 6.38,
+                    "bindings": [
+                        "YTo0OntzOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7aTo2O3M6NjoiX3Rva2VuIjtzOjQwOiJhQXBpMHQ1eVpHdDFIRXVkRk1TTndyNVNrNEF2TmhRRzJvVDdHb3NaIjtzOjk6Il9wcmV2aW91cyI7YToyOntzOjM6InVybCI7czo2MToiaHR0cDovL2xvY2FsaG9zdC9hZG1pbi9yZXBvcnQvbGV2ZWwtaW5jb21lP3BhZ2U9MSZwZXJfcGFnZT01MCI7czo1OiJyb3V0ZSI7czoyNToiYWRtaW4ucmVwb3J0LmxldmVsLWluY29tZSI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fX0=",
+                        1790589326,
+                        6,
+                        "127.0.0.1",
+                        "Symfony",
+                        "evBZRL0Oij4AP4DAdJmpYB9sjfwxy97YNwKCxBXR"
+                    ]
+                }
+            ]
+        },
+        "page_100": {
+            "status": 200,
+            "http_seconds": 0.134,
+            "memory_delta_bytes": 0,
+            "query_count": 14,
+            "output_length": 50644,
+            "slowest_query_ms": 63.82,
+            "queries": [
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 1.64,
+                    "bindings": [
+                        "Yjs1EuJBv3Wpt84e39KwnMdcHExbjS6if9kdv8rp"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 1.64,
+                    "bindings": [
+                        "Yjs1EuJBv3Wpt84e39KwnMdcHExbjS6if9kdv8rp"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 63.82,
+                    "bindings": []
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 63.82,
+                    "bindings": []
+                },
+                {
+                    "sql": "select count(*) as aggregate from `level_commission_transactions`",
+                    "time_ms": 23.38,
+                    "bindings": []
+                },
+                {
+                    "sql": "select count(*) as aggregate from `level_commission_transactions`",
+                    "time_ms": 23.38,
+                    "bindings": []
+                },
+                {
+                    "sql": "select `created_at`, `id` from `level_commission_transactions` order by `created_at` desc, `id` desc limit 1 offset 4949",
+                    "time_ms": 7.59,
+                    "bindings": []
+                },
+                {
+                    "sql": "select `created_at`, `id` from `level_commission_transactions` order by `created_at` desc, `id` desc limit 1 offset 4949",
+                    "time_ms": 7.59,
+                    "bindings": []
+                },
+                {
+                    "sql": "select `id`, `member_id`, `member_name`, `from_member_id`, `level`, `income_amount`, `on_amount`, `created_at` from `level_commission_transactions` where (`created_at` < ? or (`created_at` = ? and `id` < ?)) order by `created_at` desc, `id` desc limit 50",
+                    "time_ms": 21.69,
+                    "bindings": [
+                        "2026-12-12T12:00:00.000000Z",
+                        "2026-12-12T12:00:00.000000Z",
+                        1728072
+                    ]
+                },
+                {
+                    "sql": "select `id`, `member_id`, `member_name`, `from_member_id`, `level`, `income_amount`, `on_amount`, `created_at` from `level_commission_transactions` where (`created_at` < ? or (`created_at` = ? and `id` < ?)) order by `created_at` desc, `id` desc limit 50",
+                    "time_ms": 21.69,
+                    "bindings": [
+                        "2026-12-12T12:00:00.000000Z",
+                        "2026-12-12T12:00:00.000000Z",
+                        1728072
+                    ]
+                }
+            ]
+        },
+        "page_1000": {
+            "status": 200,
+            "http_seconds": 0.166,
+            "memory_delta_bytes": 0,
+            "query_count": 21,
+            "output_length": 50717,
+            "slowest_query_ms": 72.27,
+            "queries": [
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.34,
+                    "bindings": [
+                        "2NhVFDYCfqoGEaMJM6lGNozRBWEKrICeK7POzM4U"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.34,
+                    "bindings": [
+                        "2NhVFDYCfqoGEaMJM6lGNozRBWEKrICeK7POzM4U"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.34,
+                    "bindings": [
+                        "2NhVFDYCfqoGEaMJM6lGNozRBWEKrICeK7POzM4U"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 34.66,
+                    "bindings": []
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 34.66,
+                    "bindings": []
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 34.66,
+                    "bindings": []
+                },
+                {
+                    "sql": "select count(*) as aggregate from `level_commission_transactions`",
+                    "time_ms": 27.16,
+                    "bindings": []
+                },
+                {
+                    "sql": "select count(*) as aggregate from `level_commission_transactions`",
+                    "time_ms": 27.16,
+                    "bindings": []
+                },
+                {
+                    "sql": "select count(*) as aggregate from `level_commission_transactions`",
+                    "time_ms": 27.16,
+                    "bindings": []
+                },
+                {
+                    "sql": "select `created_at`, `id` from `level_commission_transactions` order by `created_at` desc, `id` desc limit 1 offset 49949",
+                    "time_ms": 72.27,
+                    "bindings": []
+                }
+            ]
+        },
+        "deep_page": {
+            "status": 200,
+            "http_seconds": 0.883,
+            "memory_delta_bytes": 2097152,
+            "query_count": 28,
+            "output_length": 50605,
+            "slowest_query_ms": 748.89,
+            "queries": [
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.48,
+                    "bindings": [
+                        "y2Y5DZMkS67ow1aOpRTeM7pGtpDwX1kizkxJ60KE"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.48,
+                    "bindings": [
+                        "y2Y5DZMkS67ow1aOpRTeM7pGtpDwX1kizkxJ60KE"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.48,
+                    "bindings": [
+                        "y2Y5DZMkS67ow1aOpRTeM7pGtpDwX1kizkxJ60KE"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.48,
+                    "bindings": [
+                        "y2Y5DZMkS67ow1aOpRTeM7pGtpDwX1kizkxJ60KE"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 54.88,
+                    "bindings": []
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 54.88,
+                    "bindings": []
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 54.88,
+                    "bindings": []
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions`",
+                    "time_ms": 54.88,
+                    "bindings": []
+                },
+                {
+                    "sql": "select count(*) as aggregate from `level_commission_transactions`",
+                    "time_ms": 44,
+                    "bindings": []
+                },
+                {
+                    "sql": "select count(*) as aggregate from `level_commission_transactions`",
+                    "time_ms": 44,
+                    "bindings": []
+                }
+            ]
+        },
+        "member_filter": {
+            "status": 200,
+            "http_seconds": 0.155,
+            "memory_delta_bytes": 0,
+            "query_count": 30,
+            "output_length": 50711,
+            "slowest_query_ms": 136.5,
+            "queries": [
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.42,
+                    "bindings": [
+                        "DdD7YCjUzCtcTtzQ2K2sPA3o3CqSzsdQzV71btt7"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.42,
+                    "bindings": [
+                        "DdD7YCjUzCtcTtzQ2K2sPA3o3CqSzsdQzV71btt7"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.42,
+                    "bindings": [
+                        "DdD7YCjUzCtcTtzQ2K2sPA3o3CqSzsdQzV71btt7"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.42,
+                    "bindings": [
+                        "DdD7YCjUzCtcTtzQ2K2sPA3o3CqSzsdQzV71btt7"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.42,
+                    "bindings": [
+                        "DdD7YCjUzCtcTtzQ2K2sPA3o3CqSzsdQzV71btt7"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `member_id` like ?",
+                    "time_ms": 136.5,
+                    "bindings": [
+                        "STBENCH0002%"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `member_id` like ?",
+                    "time_ms": 136.5,
+                    "bindings": [
+                        "STBENCH0002%"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `member_id` like ?",
+                    "time_ms": 136.5,
+                    "bindings": [
+                        "STBENCH0002%"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `member_id` like ?",
+                    "time_ms": 136.5,
+                    "bindings": [
+                        "STBENCH0002%"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `member_id` like ?",
+                    "time_ms": 136.5,
+                    "bindings": [
+                        "STBENCH0002%"
+                    ]
+                }
+            ]
+        },
+        "level_filter": {
+            "status": 200,
+            "http_seconds": 0.445,
+            "memory_delta_bytes": 0,
+            "query_count": 36,
+            "output_length": 50503,
+            "slowest_query_ms": 427.26,
+            "queries": [
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.37,
+                    "bindings": [
+                        "wIjNluEsunM4aEioN3QMYsZBwtZG5rsBb5lUByIX"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.37,
+                    "bindings": [
+                        "wIjNluEsunM4aEioN3QMYsZBwtZG5rsBb5lUByIX"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.37,
+                    "bindings": [
+                        "wIjNluEsunM4aEioN3QMYsZBwtZG5rsBb5lUByIX"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.37,
+                    "bindings": [
+                        "wIjNluEsunM4aEioN3QMYsZBwtZG5rsBb5lUByIX"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.37,
+                    "bindings": [
+                        "wIjNluEsunM4aEioN3QMYsZBwtZG5rsBb5lUByIX"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.37,
+                    "bindings": [
+                        "wIjNluEsunM4aEioN3QMYsZBwtZG5rsBb5lUByIX"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `level` = ?",
+                    "time_ms": 427.26,
+                    "bindings": [
+                        3
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `level` = ?",
+                    "time_ms": 427.26,
+                    "bindings": [
+                        3
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `level` = ?",
+                    "time_ms": 427.26,
+                    "bindings": [
+                        3
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `level` = ?",
+                    "time_ms": 427.26,
+                    "bindings": [
+                        3
+                    ]
+                }
+            ]
+        },
+        "date_filter": {
+            "status": 200,
+            "http_seconds": 4.523,
+            "memory_delta_bytes": 0,
+            "query_count": 42,
+            "output_length": 50983,
+            "slowest_query_ms": 4500.54,
+            "queries": [
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.49,
+                    "bindings": [
+                        "XCcbEmHWuH2j7d8Nz5mYuerkBcGl5atxbpAt8AxT"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.49,
+                    "bindings": [
+                        "XCcbEmHWuH2j7d8Nz5mYuerkBcGl5atxbpAt8AxT"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.49,
+                    "bindings": [
+                        "XCcbEmHWuH2j7d8Nz5mYuerkBcGl5atxbpAt8AxT"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.49,
+                    "bindings": [
+                        "XCcbEmHWuH2j7d8Nz5mYuerkBcGl5atxbpAt8AxT"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.49,
+                    "bindings": [
+                        "XCcbEmHWuH2j7d8Nz5mYuerkBcGl5atxbpAt8AxT"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.49,
+                    "bindings": [
+                        "XCcbEmHWuH2j7d8Nz5mYuerkBcGl5atxbpAt8AxT"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.49,
+                    "bindings": [
+                        "XCcbEmHWuH2j7d8Nz5mYuerkBcGl5atxbpAt8AxT"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `created_at` >= ? and `created_at` < ?",
+                    "time_ms": 4500.54,
+                    "bindings": [
+                        "2026-01-01T00:00:00.000000Z",
+                        "2026-02-01T00:00:00.000000Z"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `created_at` >= ? and `created_at` < ?",
+                    "time_ms": 4500.54,
+                    "bindings": [
+                        "2026-01-01T00:00:00.000000Z",
+                        "2026-02-01T00:00:00.000000Z"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `created_at` >= ? and `created_at` < ?",
+                    "time_ms": 4500.54,
+                    "bindings": [
+                        "2026-01-01T00:00:00.000000Z",
+                        "2026-02-01T00:00:00.000000Z"
+                    ]
+                }
+            ]
+        },
+        "combined_filter": {
+            "status": 200,
+            "http_seconds": 0.025,
+            "memory_delta_bytes": 0,
+            "query_count": 48,
+            "output_length": 39896,
+            "slowest_query_ms": 5.16,
+            "queries": [
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.36,
+                    "bindings": [
+                        "cGTyE60gFTvukhEZWDIE7S6jBEOfaPri9stczB3n"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.36,
+                    "bindings": [
+                        "cGTyE60gFTvukhEZWDIE7S6jBEOfaPri9stczB3n"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.36,
+                    "bindings": [
+                        "cGTyE60gFTvukhEZWDIE7S6jBEOfaPri9stczB3n"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.36,
+                    "bindings": [
+                        "cGTyE60gFTvukhEZWDIE7S6jBEOfaPri9stczB3n"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.36,
+                    "bindings": [
+                        "cGTyE60gFTvukhEZWDIE7S6jBEOfaPri9stczB3n"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.36,
+                    "bindings": [
+                        "cGTyE60gFTvukhEZWDIE7S6jBEOfaPri9stczB3n"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.36,
+                    "bindings": [
+                        "cGTyE60gFTvukhEZWDIE7S6jBEOfaPri9stczB3n"
+                    ]
+                },
+                {
+                    "sql": "select * from `sessions` where `id` = ? limit 1",
+                    "time_ms": 0.36,
+                    "bindings": [
+                        "cGTyE60gFTvukhEZWDIE7S6jBEOfaPri9stczB3n"
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `member_id` like ? and `created_at` >= ? and `created_at` < ? and `level` = ?",
+                    "time_ms": 5.16,
+                    "bindings": [
+                        "STBENCH0002%",
+                        "2026-01-02T00:00:00.000000Z",
+                        "2026-02-01T00:00:00.000000Z",
+                        2
+                    ]
+                },
+                {
+                    "sql": "select sum(`income_amount`) as aggregate from `level_commission_transactions` where `member_id` like ? and `created_at` >= ? and `created_at` < ? and `level` = ?",
+                    "time_ms": 5.16,
+                    "bindings": [
+                        "STBENCH0002%",
+                        "2026-01-02T00:00:00.000000Z",
+                        "2026-02-01T00:00:00.000000Z",
+                        2
+                    ]
+                }
+            ]
+        }
+    },
+    "explain_default": [
+        {
+            "id": 1,
+            "select_type": "SIMPLE",
+            "table": "level_commission_transactions",
+            "type": "index",
+            "possible_keys": null,
+            "key": "lct_created_at_id_index",
+            "key_len": "13",
+            "ref": null,
+            "rows": "50",
+            "Extra": ""
+        }
+    ],
+    "explain_member": [
+        {
+            "id": 1,
+            "select_type": "SIMPLE",
+            "table": "level_commission_transactions",
+            "type": "range",
+            "possible_keys": "level_commission_transactions_member_id_created_at_index,lct_member_created_at_id_index,lct_member_level_created_at_id_index",
+            "key": "level_commission_transactions_member_id_created_at_index",
+            "key_len": "1022",
+            "ref": null,
+            "rows": "667",
+            "Extra": "Using index condition; Using filesort"
+        }
+    ],
+    "explain_level": [
+        {
+            "id": 1,
+            "select_type": "SIMPLE",
+            "table": "level_commission_transactions",
+            "type": "ref",
+            "possible_keys": "lct_level_created_at_id_index,lct_level_member_created_at_id_index",
+            "key": "lct_level_created_at_id_index",
+            "key_len": "1",
+            "ref": "const",
+            "rows": "3125",
+            "Extra": "Using where"
+        }
+    ],
+    "explain_date": [
+        {
+            "id": 1,
+            "select_type": "SIMPLE",
+            "table": "level_commission_transactions",
+            "type": "range",
+            "possible_keys": "lct_created_at_id_index",
+            "key": "lct_created_at_id_index",
+            "key_len": "5",
+            "ref": null,
+            "rows": "15206",
+            "Extra": "Using where"
+        }
+    ]
+}
