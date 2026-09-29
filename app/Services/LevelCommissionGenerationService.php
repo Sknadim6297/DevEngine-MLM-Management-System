@@ -9,6 +9,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Credits upline members' Working Wallet with Level Commission for a qualifying investment.
@@ -32,8 +33,10 @@ class LevelCommissionGenerationService
 
     private array $rankResultsByMember = [];
 
-    public function __construct(private readonly RankService $rankService)
-    {
+    public function __construct(
+        private readonly RankService $rankService,
+        private readonly ReportSummaryService $reportSummaryService,
+    ) {
     }
 
     public function generateForInvestment(Investment $investment, ?CarbonImmutable $businessDate = null): array
@@ -157,35 +160,82 @@ class LevelCommissionGenerationService
             ];
         }, $newEntries);
 
-        $successfulEntries = $newEntries;
-        try {
-            LevelCommissionTransaction::query()->insert($rows);
-        } catch (QueryException $exception) {
+        $generatedCount = DB::transaction(function () use ($rows, $newEntries, $investment, $businessDate, &$result): int {
             $successfulEntries = [];
-            foreach ($newEntries as $index => $entry) {
-                try {
-                    LevelCommissionTransaction::query()->insert([$rows[$index]]);
-                    $successfulEntries[] = $entry;
-                } catch (QueryException $duplicateOrDatabaseException) {
-                    $result['skipped']++;
+            try {
+                LevelCommissionTransaction::query()->insert($rows);
+                $successfulEntries = $newEntries;
+            } catch (QueryException $exception) {
+                if (! $this->isDuplicateKeyException($exception)) {
+                    throw $exception;
+                }
+
+                foreach ($newEntries as $index => $entry) {
+                    try {
+                        LevelCommissionTransaction::query()->insert([$rows[$index]]);
+                        $successfulEntries[] = $entry;
+                    } catch (QueryException $rowException) {
+                        if (! $this->isDuplicateKeyException($rowException)) {
+                            throw $rowException;
+                        }
+
+                        $result['skipped']++;
+                    }
                 }
             }
-        }
 
-        $walletDeltas = [];
-        foreach ($successfulEntries as $entry) {
-            $memberId = $entry['member']->member_id;
-            $walletDeltas[$memberId] = bcadd(
-                $walletDeltas[$memberId] ?? '0.0000',
-                $entry['income_amount'],
-                self::MONEY_SCALE
+            if ($successfulEntries === []) {
+                return 0;
+            }
+
+            $successfulMemberIds = array_map(
+                fn (array $entry): string => $entry['member']->member_id,
+                $successfulEntries
             );
-        }
+            $insertedTransactions = LevelCommissionTransaction::query()
+                ->where('investment_id', $investment->investment_id)
+                ->whereIn('member_id', $successfulMemberIds)
+                ->whereDate('business_date', $businessDate->toDateString())
+                ->orderBy('level')
+                ->orderBy('member_id')
+                ->get();
 
-        $this->applyWalletDeltas($walletDeltas);
-        $result['generated'] += count($successfulEntries);
+            if ($insertedTransactions->count() !== count($successfulEntries)) {
+                throw new RuntimeException('Could not resolve every inserted Level Commission transaction for summary updates.');
+            }
+
+            foreach ($insertedTransactions as $transaction) {
+                $this->reportSummaryService->addLevelCommissionTransaction($transaction);
+            }
+
+            $walletDeltas = [];
+            foreach ($successfulEntries as $entry) {
+                $memberId = $entry['member']->member_id;
+                $walletDeltas[$memberId] = bcadd(
+                    $walletDeltas[$memberId] ?? '0.0000',
+                    $entry['income_amount'],
+                    self::MONEY_SCALE
+                );
+            }
+
+            $this->applyWalletDeltas($walletDeltas);
+
+            return count($successfulEntries);
+        }, 3);
+
+        $result['generated'] += $generatedCount;
 
         return $result;
+    }
+
+    private function isDuplicateKeyException(QueryException $exception): bool
+    {
+        $driverCode = $exception->errorInfo[1] ?? null;
+        $message = strtolower($exception->getMessage());
+
+        return $driverCode === 1062
+            || str_contains($message, 'duplicate entry')
+            || str_contains($message, 'unique constraint failed');
     }
 
     public function prepareForInvestments(iterable $memberIds): void

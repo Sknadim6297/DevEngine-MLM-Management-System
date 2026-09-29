@@ -20,6 +20,10 @@ class RoiGenerationService
 
     private const MONEY_SCALE = 4;
 
+    public function __construct(private readonly ReportSummaryService $reportSummaryService)
+    {
+    }
+
     public function generateForDate(CarbonImmutable $businessDate, ?string $investmentPrefix = null): array
     {
         $businessDate = $businessDate->setTimezone(self::TIMEZONE)->startOfDay();
@@ -134,7 +138,7 @@ class RoiGenerationService
                     return 'skipped';
                 }
 
-                RoiTransaction::create([
+                $roiTransaction = RoiTransaction::create([
                     'reference' => 'ROI-'.$investment->investment_id.'-'.$businessDate->format('Ymd'),
                     'investment_id' => $investment->investment_id,
                     'member_id' => $member->member_id,
@@ -146,6 +150,8 @@ class RoiGenerationService
                     'status' => 'generated',
                     'withdrawable_on' => $businessDate->addMonthNoOverflow()->startOfMonth()->toDateString(),
                 ]);
+
+                $this->reportSummaryService->addRoiTransaction($roiTransaction);
 
                 $member->roi_wallet_amount = bcadd(
                     (string) $member->roi_wallet_amount,

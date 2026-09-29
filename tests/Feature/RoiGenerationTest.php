@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\RoiGenerationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class RoiGenerationTest extends TestCase
@@ -163,6 +164,38 @@ class RoiGenerationTest extends TestCase
 
         $this->assertDatabaseCount('roi_transactions', 1);
         $this->assertSame('0.1666', $member->fresh()->roi_wallet_amount);
+    }
+
+    public function test_roi_generation_updates_active_report_summaries_atomically(): void
+    {
+        $generationId = (int) DB::table('report_summary_generations')->insertGetId([
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('report_summary_state')->where('id', 1)->update([
+            'active_generation_id' => $generationId,
+            'writes_enabled' => true,
+        ]);
+
+        $member = $this->member();
+        $this->investment($member, 'INVROI-SUMMARY', '100.0000', '2026-09-01');
+        app(RoiGenerationService::class)->generateForDate(CarbonImmutable::parse('2026-09-02', RoiGenerationService::TIMEZONE));
+
+        $transaction = RoiTransaction::query()->where('investment_id', 'INVROI-SUMMARY')->firstOrFail();
+        $dateKey = (int) DB::table('roi_transactions')
+            ->where('id', $transaction->id)
+            ->selectRaw("CAST(strftime('%Y%m%d', created_at) AS INTEGER) AS date_key")
+            ->value('date_key');
+        $summary = DB::table('roi_report_member_daily_summaries')
+            ->where('generation_id', $generationId)
+            ->where('member_id', $member->member_id)
+            ->where('date_key', $dateKey)
+            ->first();
+
+        $this->assertNotNull($summary);
+        $this->assertSame('1', (string) $summary->transaction_count);
+        $this->assertSame('0.1666', number_format((float) $summary->total_income_amount, 4, '.', ''));
     }
 
     public function test_transaction_failure_rolls_back_roi_wallet_and_investment_changes(): void
@@ -326,6 +359,8 @@ class RoiGenerationTest extends TestCase
     public function test_roi_report_filters_and_query_string_preservation_match_direct_sql(): void
     {
         $this->actingAs(User::factory()->create(['is_admin' => true]));
+        $this->member('STFILTER01');
+        $this->member('STFILTER02');
 
         $rows = [];
         foreach (range(1, 30) as $number) {
@@ -367,11 +402,12 @@ class RoiGenerationTest extends TestCase
             'member_id' => $memberId,
             'from_date' => $fromDate,
             'to_date' => $toDate,
+            'per_page' => 2,
             'page' => 1,
         ]));
 
         $response->assertOk();
-        $this->assertStringContainsString('page=1', $response->getContent());
+        $this->assertStringContainsString('page=2', $response->getContent());
         $this->assertStringContainsString('member_id=' . $memberId, $response->getContent());
         $this->assertStringContainsString('from_date=' . $fromDate, $response->getContent());
         $this->assertStringContainsString('to_date=' . $toDate, $response->getContent());

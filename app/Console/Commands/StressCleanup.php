@@ -7,6 +7,7 @@ use App\Models\LevelCommissionTransaction;
 use App\Models\Member;
 use App\Models\RankAchievement;
 use App\Models\RoiTransaction;
+use App\Services\ReportSummaryService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,7 @@ class StressCleanup extends Command
     protected $signature = 'stress:cleanup {--force : Confirm deletion of only the registered stress dataset}';
     protected $description = 'Remove only the registered 10,000-member stress-test dataset and its generated records.';
 
-    public function handle(): int
+    public function handle(ReportSummaryService $reportSummaryService): int
     {
         $memberIds = Member::query()->where('member_id', 'like', StressSeed::MEMBER_PREFIX . '%')->pluck('member_id');
         $investmentIds = Investment::query()->where('investment_id', 'like', StressSeed::INVESTMENT_PREFIX . '%')->pluck('investment_id');
@@ -33,8 +34,27 @@ class StressCleanup extends Command
             return self::FAILURE;
         }
 
-        DB::transaction(function () use ($memberIds, $investmentIds): void {
+        DB::transaction(function () use ($memberIds, $investmentIds, $reportSummaryService): void {
             RankAchievement::query()->whereIn('member_id', $memberIds)->delete();
+
+            LevelCommissionTransaction::query()
+                ->whereIn('investment_id', $investmentIds)
+                ->orderBy('id')
+                ->chunkById(500, function ($transactions) use ($reportSummaryService): void {
+                    foreach ($transactions as $transaction) {
+                        $reportSummaryService->removeLevelCommissionTransaction((int) $transaction->id);
+                    }
+                });
+
+            RoiTransaction::query()
+                ->whereIn('investment_id', $investmentIds)
+                ->orderBy('id')
+                ->chunkById(500, function ($transactions) use ($reportSummaryService): void {
+                    foreach ($transactions as $transaction) {
+                        $reportSummaryService->removeRoiTransaction((int) $transaction->id);
+                    }
+                });
+
             LevelCommissionTransaction::query()->whereIn('investment_id', $investmentIds)->delete();
             RoiTransaction::query()->whereIn('investment_id', $investmentIds)->delete();
             Investment::query()->whereIn('investment_id', $investmentIds)->delete();

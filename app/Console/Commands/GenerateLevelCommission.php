@@ -48,13 +48,11 @@ class GenerateLevelCommission extends Command
         $skipped = 0;
 
         $query->orderBy('id')->chunkById(100, function ($investments) use ($service, $businessDate, &$generated, &$skipped) {
-            DB::transaction(function () use ($investments, $service, $businessDate, &$generated, &$skipped): void {
-                foreach ($investments as $investment) {
-                    $result = $service->generateForInvestment($investment, $businessDate);
-                    $generated += $result['generated'];
-                    $skipped += $result['skipped'];
-                }
-            });
+            foreach ($investments as $investment) {
+                $result = $service->generateForInvestment($investment, $businessDate);
+                $generated += $result['generated'];
+                $skipped += $result['skipped'];
+            }
         });
 
         $this->info("Level commission processing completed: {$generated} generated, {$skipped} skipped.");

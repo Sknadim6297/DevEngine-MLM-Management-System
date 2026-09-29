@@ -107,7 +107,7 @@
 
                     <span>Total Amount (USDT)</span>
 
-                    <strong>{{ rtrim(rtrim(number_format((float) $totalAmount, 4, '.', ''), '0'), '.') ?: '0' }}</strong>
+                    <strong>{{ $totalAmount }}</strong>
 
                 </div>
 
@@ -142,8 +142,8 @@
                             <td>{{ $transactions->firstItem() + $loop->index }}</td>
                             <td>{{ $transaction->member_id }}</td>
                             <td>{{ $transaction->member_name }}</td>
-                            <td>{{ rtrim(rtrim(number_format((float) $transaction->income_amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
-                            <td>{{ rtrim(rtrim(number_format((float) $transaction->on_amount, 4, '.', ''), '0'), '.') ?: '0' }}</td>
+                            <td>{{ rtrim(rtrim((string) $transaction->income_amount, '0'), '.') ?: '0' }}</td>
+                            <td>{{ rtrim(rtrim((string) $transaction->on_amount, '0'), '.') ?: '0' }}</td>
                             <td>{{ $transaction->from_member_id }}</td>
                             <td>{{ $transaction->level }}</td>
                             <td>{{ $transaction->created_at?->format('d-M-Y') }}</td>

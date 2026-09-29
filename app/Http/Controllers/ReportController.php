@@ -7,6 +7,7 @@ use App\Models\Member;
 use App\Models\RankAchievement;
 use App\Models\RoiTransaction;
 use App\Services\RankService;
+use App\Services\ReportSummaryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -17,11 +18,9 @@ class ReportController extends Controller
     {
         $query = $this->roiQuery($request);
 
-        $summary = (clone $query)
-            ->selectRaw('COALESCE(SUM(income_amount), 0) as total_amount, COUNT(*) as total_rows')
-            ->first();
+        $summary = $this->roiReportSummary($request, $query);
 
-        $totalAmount = (float) ($summary->total_amount ?? 0);
+        $totalAmount = $this->formatDecimalAmount((string) ($summary->total_amount ?? '0'));
         $totalRows = (int) ($summary->total_rows ?? 0);
         $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
         $lastPage = max(1, (int) ceil($totalRows / $perPage));
@@ -70,11 +69,9 @@ class ReportController extends Controller
     {
         $query = $this->levelIncomeQuery($request);
 
-        $aggregate = (clone $query)
-            ->selectRaw('SUM(income_amount) as total_amount, COUNT(*) as total_rows')
-            ->first();
+        $aggregate = $this->levelIncomeReportSummary($request, $query);
 
-        $totalAmount = (float) ($aggregate->total_amount ?? 0);
+        $totalAmount = $this->formatDecimalAmount((string) ($aggregate->total_amount ?? '0'));
         $perPage = max(1, min(100, (int) $request->query('per_page', 50)));
         $totalRows = (int) ($aggregate->total_rows ?? 0);
         $lastPage = max(1, (int) ceil($totalRows / $perPage));
@@ -321,6 +318,103 @@ class ReportController extends Controller
 
     protected function formatUsdt($amount): string
     {
-        return rtrim(rtrim(number_format((float) $amount, 4, '.', ''), '0'), '.') ?: '0';
+        return $this->formatDecimalAmount((string) $amount);
+    }
+
+    protected function roiReportSummary(Request $request, $rawQuery): object
+    {
+        $generationId = app(ReportSummaryService::class)->activeGenerationId();
+        if ($generationId === null) {
+            return (clone $rawQuery)
+                ->selectRaw('COALESCE(SUM(income_amount), 0) as total_amount, COUNT(*) as total_rows')
+                ->first();
+        }
+
+        $memberId = trim((string) $request->query('member_id', ''));
+        $table = $memberId === ''
+            ? 'roi_report_global_daily_summaries'
+            : 'roi_report_member_daily_summaries';
+
+        $summaryQuery = \Illuminate\Support\Facades\DB::table($table)
+            ->where('generation_id', $generationId);
+
+        if ($memberId !== '') {
+            $memberIds = Member::query()
+                ->where('member_id', 'like', $memberId . '%')
+                ->select('member_id');
+            $summaryQuery->whereIn('member_id', $memberIds);
+        }
+
+        $this->applySummaryDateFilters($summaryQuery, $request);
+
+        return $summaryQuery
+            ->selectRaw('COALESCE(SUM(total_income_amount), 0) as total_amount, COALESCE(SUM(transaction_count), 0) as total_rows')
+            ->first();
+    }
+
+    protected function levelIncomeReportSummary(Request $request, $rawQuery): object
+    {
+        $generationId = app(ReportSummaryService::class)->activeGenerationId();
+        if ($generationId === null) {
+            return (clone $rawQuery)
+                ->selectRaw('COALESCE(SUM(income_amount), 0) as total_amount, COUNT(*) as total_rows')
+                ->first();
+        }
+
+        $memberId = trim((string) $request->query('member_id', ''));
+        $level = trim((string) $request->query('level', ''));
+        if ($memberId !== '') {
+            $table = 'level_commission_report_member_level_daily_summaries';
+        } elseif ($level !== '') {
+            $table = 'level_commission_report_level_daily_summaries';
+        } else {
+            $table = 'level_commission_report_global_daily_summaries';
+        }
+
+        $summaryQuery = \Illuminate\Support\Facades\DB::table($table)
+            ->where('generation_id', $generationId);
+
+        if ($memberId !== '') {
+            $memberIds = Member::query()
+                ->where('member_id', 'like', $memberId . '%')
+                ->select('member_id');
+            $summaryQuery->whereIn('member_id', $memberIds);
+        }
+
+        if ($level !== '') {
+            $summaryQuery->where('level', $level);
+        }
+
+        $this->applySummaryDateFilters($summaryQuery, $request);
+
+        return $summaryQuery
+            ->selectRaw('COALESCE(SUM(total_income_amount), 0) as total_amount, COALESCE(SUM(transaction_count), 0) as total_rows')
+            ->first();
+    }
+
+    protected function applySummaryDateFilters($query, Request $request): void
+    {
+        if ($request->filled('from_date')) {
+            $fromDate = CarbonImmutable::parse($request->query('from_date'))->startOfDay();
+            $query->where('date_key', '>=', (int) $fromDate->format('Ymd'));
+        }
+
+        if ($request->filled('to_date')) {
+            $toDate = CarbonImmutable::parse($request->query('to_date'))->startOfDay();
+            $query->where('date_key', '<=', (int) $toDate->format('Ymd'));
+        }
+    }
+
+    protected function formatDecimalAmount(string $amount): string
+    {
+        if (! str_contains($amount, '.')) {
+            return $amount === '-0' ? '0' : $amount;
+        }
+
+        [$integer, $fraction] = explode('.', $amount, 2);
+        $fraction = rtrim($fraction, '0');
+        $formatted = $fraction === '' ? $integer : $integer . '.' . $fraction;
+
+        return $formatted === '-0' ? '0' : $formatted;
     }
 }

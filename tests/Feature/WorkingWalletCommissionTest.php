@@ -10,6 +10,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use App\Services\LevelCommissionGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class WorkingWalletCommissionTest extends TestCase
@@ -68,6 +69,16 @@ class WorkingWalletCommissionTest extends TestCase
         ]);
         $this->investment($memberC, 'INVQUAL001', '6000.0000');
 
+        $generationId = (int) DB::table('report_summary_generations')->insertGetId([
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('report_summary_state')->where('id', 1)->update([
+            'active_generation_id' => $generationId,
+            'writes_enabled' => true,
+        ]);
+
         app(LevelCommissionGenerationService::class)->generateForInvestment($investment);
 
         $memberA->refresh();
@@ -90,6 +101,13 @@ class WorkingWalletCommissionTest extends TestCase
             'level' => 2,
             'income_amount' => 5.0000,
         ]);
+
+        $summary = DB::table('level_commission_report_global_daily_summaries')
+            ->where('generation_id', $generationId)
+            ->first();
+        $this->assertNotNull($summary);
+        $this->assertSame('2', (string) $summary->transaction_count);
+        $this->assertSame('15.0000', number_format((float) $summary->total_income_amount, 4, '.', ''));
     }
 
     public function test_duplicate_generation_does_not_double_credit_working_wallet(): void
@@ -106,6 +124,16 @@ class WorkingWalletCommissionTest extends TestCase
         ]);
         $this->investment($memberB, 'INVQUAL002', '6000.0000');
 
+        $generationId = (int) DB::table('report_summary_generations')->insertGetId([
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('report_summary_state')->where('id', 1)->update([
+            'active_generation_id' => $generationId,
+            'writes_enabled' => true,
+        ]);
+
         $service = app(LevelCommissionGenerationService::class);
         $service->generateForInvestment($investment);
         $service->generateForInvestment($investment);
@@ -114,6 +142,9 @@ class WorkingWalletCommissionTest extends TestCase
 
         $this->assertSame('5.0000', (string) $memberA->working_wallet_amount);
         $this->assertSame(1, LevelCommissionTransaction::where('investment_id', 'INVWORK002')->count());
+        $this->assertSame(1, (int) DB::table('level_commission_report_global_daily_summaries')
+            ->where('generation_id', $generationId)
+            ->sum('transaction_count'));
     }
 
     public function test_missing_sponsor_stops_the_chain_without_error(): void

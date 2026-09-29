@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Investment;
 use App\Models\LevelCommissionTransaction;
 use App\Models\RoiTransaction;
+use App\Services\ReportSummaryService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -14,7 +15,7 @@ class CompleteInvestmentTo300 extends Command
 
     protected $description = 'Testing-only command to complete an investment to the 300% cap without exceeding it. Local/testing only.';
 
-    public function handle(): int
+    public function handle(ReportSummaryService $reportSummaryService): int
     {
         if (! in_array(app()->environment(), ['local', 'testing'], true)) {
             $this->error('The investment:complete-300 command is a testing-only command and is disabled outside local/testing environments.');
@@ -85,11 +86,11 @@ class CompleteInvestmentTo300 extends Command
         $dummyAmountAdded = bcadd($dummyRoiAmount, $dummyLevelCommissionAmount, 4);
 
         try {
-            DB::transaction(function () use ($investment, $dummyRoiAmount, $dummyLevelCommissionAmount, $capAmount) {
+            DB::transaction(function () use ($investment, $dummyRoiAmount, $dummyLevelCommissionAmount, $capAmount, $reportSummaryService) {
                 $roiReference = 'TEST-ROI-' . $investment->investment_id . '-' . now()->format('YmdHis');
                 $levelReference = 'TEST-LC-' . $investment->investment_id . '-' . now()->format('YmdHis');
 
-                RoiTransaction::query()->create([
+                $roiTransaction = RoiTransaction::query()->create([
                     'reference' => $roiReference,
                     'investment_id' => $investment->investment_id,
                     'member_id' => $investment->member_id,
@@ -101,8 +102,9 @@ class CompleteInvestmentTo300 extends Command
                     'status' => 'generated',
                     'withdrawable_on' => '2099-12-31',
                 ]);
+                $reportSummaryService->addRoiTransaction($roiTransaction);
 
-                LevelCommissionTransaction::query()->create([
+                $levelCommissionTransaction = LevelCommissionTransaction::query()->create([
                     'reference' => $levelReference,
                     'investment_id' => $investment->investment_id,
                     'member_id' => $investment->member_id,
@@ -115,6 +117,7 @@ class CompleteInvestmentTo300 extends Command
                     'rate_percentage' => '1.000',
                     'income_amount' => $dummyLevelCommissionAmount,
                 ]);
+                $reportSummaryService->addLevelCommissionTransaction($levelCommissionTransaction);
 
                 $finalCombinedReturn = bcadd(
                     bcadd((string) RoiTransaction::query()->where('investment_id', $investment->investment_id)->sum('income_amount'), (string) LevelCommissionTransaction::query()->where('investment_id', $investment->investment_id)->sum('income_amount'), 4),

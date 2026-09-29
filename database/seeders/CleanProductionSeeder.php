@@ -9,6 +9,7 @@ use App\Models\LevelCommissionTransaction;
 use App\Models\Member;
 use App\Models\RoiTransaction;
 use App\Models\User;
+use App\Services\ReportSummaryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -17,19 +18,37 @@ class CleanProductionSeeder extends Seeder
 {
     private const ADMIN_ID = 'ST666666';
 
-    public function run(): void
+    public function run(ReportSummaryService $reportSummaryService): void
     {
-        DB::transaction(function (): void {
-            $this->clearApplicationData();
+        DB::transaction(function () use ($reportSummaryService): void {
+            $summaryState = DB::table('report_summary_state')->where('id', 1)->lockForUpdate()->first();
+            if ($summaryState?->rebuild_in_progress) {
+                throw new \RuntimeException('Cannot reset application data while report summaries are being rebuilt.');
+            }
+
+            $this->clearApplicationData($reportSummaryService);
             $this->createAdmin();
 
             $members = $this->createMembers();
-            $this->createInvestmentsAndTransactions($members);
+            $this->createInvestmentsAndTransactions($members, $reportSummaryService);
         });
     }
 
-    private function clearApplicationData(): void
+    private function clearApplicationData(ReportSummaryService $reportSummaryService): void
     {
+        $generationId = $reportSummaryService->activeGenerationId();
+        if ($generationId !== null) {
+            foreach ([
+                'roi_report_global_daily_summaries',
+                'roi_report_member_daily_summaries',
+                'level_commission_report_global_daily_summaries',
+                'level_commission_report_level_daily_summaries',
+                'level_commission_report_member_level_daily_summaries',
+            ] as $table) {
+                DB::table($table)->where('generation_id', $generationId)->delete();
+            }
+        }
+
         LevelCommissionTransaction::query()->delete();
         RoiTransaction::query()->delete();
         InvestmentWithdrawal::query()->delete();
@@ -95,7 +114,7 @@ class CleanProductionSeeder extends Seeder
         return $members;
     }
 
-    private function createInvestmentsAndTransactions(array $members): void
+    private function createInvestmentsAndTransactions(array $members, ReportSummaryService $reportSummaryService): void
     {
         $baseDate = CarbonImmutable::parse('2026-08-01', 'Asia/Kolkata')->setTimezone('UTC');
 
@@ -132,7 +151,7 @@ class CleanProductionSeeder extends Seeder
             ]);
 
             $roiAmount = $isClosed ? $amount * 2 : round($amount / 600, 4);
-            RoiTransaction::create([
+            $roiTransaction = RoiTransaction::create([
                 'reference' => 'ROI-' . $investmentId,
                 'investment_id' => $investmentId,
                 'member_id' => $member['member_id'],
@@ -146,10 +165,11 @@ class CleanProductionSeeder extends Seeder
                 'created_at' => $investmentDate,
                 'updated_at' => $investmentDate,
             ]);
+            $reportSummaryService->addRoiTransaction($roiTransaction);
 
             if ($member['sponsor_id'] !== self::ADMIN_ID) {
                 $commissionAmount = $isClosed ? $amount : round($amount * 0.01, 4);
-                LevelCommissionTransaction::create([
+                $levelCommissionTransaction = LevelCommissionTransaction::create([
                     'reference' => 'LC-' . $investmentId,
                     'investment_id' => $investmentId,
                     'member_id' => $member['sponsor_id'],
@@ -164,6 +184,7 @@ class CleanProductionSeeder extends Seeder
                     'created_at' => $investmentDate,
                     'updated_at' => $investmentDate,
                 ]);
+                $reportSummaryService->addLevelCommissionTransaction($levelCommissionTransaction);
             }
 
             if ($isClosed && $number % 3 === 0) {

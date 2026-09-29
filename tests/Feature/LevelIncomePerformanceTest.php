@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Member;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -152,6 +153,20 @@ class LevelIncomePerformanceTest extends TestCase
 
     private function insertTransactions(int $count): void
     {
+        foreach (range(1, 10) as $memberNumber) {
+            $memberId = 'STBENCH' . str_pad((string) $memberNumber, 4, '0', STR_PAD_LEFT);
+            Member::create([
+                'member_id' => $memberId,
+                'sponsor_id' => 'STSOURCE',
+                'sponsor_name' => 'Source Member',
+                'member_name' => 'Benchmark Member ' . $memberNumber,
+                'mobile_no' => (string) (9000000000 + $memberNumber),
+                'pan_card_no' => 'BCH' . str_pad((string) $memberNumber, 7, '0', STR_PAD_LEFT),
+                'email' => 'benchmark' . $memberNumber . '@example.test',
+                'status' => 'active',
+            ]);
+        }
+
         $rows = [];
         for ($number = 1; $number <= $count; $number++) {
             $id = str_pad((string) $number, 5, '0', STR_PAD_LEFT);
