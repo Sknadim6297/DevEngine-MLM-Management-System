@@ -2,7 +2,6 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -14,10 +13,11 @@ $roiSchedule = Schedule::command(
         ? 'roi:generate --testing-period'
         : 'roi:generate'
 )->timezone('Asia/Kolkata')->withoutOverlapping();
+
 $roiSchedule->onOneServer();
 
 if (app()->environment(['local', 'testing'])) {
-    $roiSchedule->everyTwoMinutes();
+    $roiSchedule->everyMinute();
 } else {
     $roiSchedule->dailyAt('00:00');
 }
@@ -27,18 +27,22 @@ $levelCommissionSchedule = Schedule::command(
         ? 'commission:generate-level --testing-period'
         : 'commission:generate-level'
 )->timezone('Asia/Kolkata')->withoutOverlapping();
+
 $levelCommissionSchedule->runInBackground()->onOneServer();
 
 if (app()->environment(['local', 'testing'])) {
-    $levelCommissionSchedule->everyTwoMinutes();
+    $levelCommissionSchedule->everyMinute();
 } else {
     $levelCommissionSchedule->dailyAt('00:00');
 }
 
-$rankProgressionSchedule = Schedule::command('rank:advance')->timezone('Asia/Kolkata')->withoutOverlapping()->onOneServer();
+$rankProgressionSchedule = Schedule::command('rank:advance')
+    ->timezone('Asia/Kolkata')
+    ->withoutOverlapping()
+    ->onOneServer();
 
 if (app()->environment(['local', 'testing'])) {
-    $rankProgressionSchedule->everyTwoMinutes();
+    $rankProgressionSchedule->everyMinute();
 } else {
     $rankProgressionSchedule->dailyAt('00:00');
 }

@@ -259,12 +259,17 @@ class ReportController extends Controller
         if ($request->filled('member_id')) {
             $memberId = trim((string) $request->query('member_id'));
             if ($memberId !== '') {
-                $nextMemberId = $memberId . chr(255);
+                $memberIds = Member::query()
+                    ->where('member_id', 'like', $memberId . '%')
+                    ->pluck('member_id')
+                    ->all();
 
-                $query->where(function ($memberQuery) use ($memberId, $nextMemberId): void {
-                    $memberQuery->where('member_id', '>=', $memberId)
-                        ->where('member_id', '<', $nextMemberId);
-                });
+                if ($memberIds === []) {
+                    $query->whereRaw('1 = 0');
+                    return;
+                }
+
+                $query->whereIn('member_id', $memberIds);
             }
         }
 
