@@ -7,31 +7,16 @@ use App\Models\Member;
 use App\Models\RankAchievement;
 use App\Models\RoiTransaction;
 use App\Services\RankService;
-use App\Services\ReportSummaryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 
 class ReportController extends Controller
 {
     public function roiReport(Request $request)
     {
         $query = $this->roiQuery($request);
-
-        $summary = $this->roiReportSummary($request, $query);
-
-        $totalAmount = $this->formatDecimalAmount((string) ($summary->total_amount ?? '0'));
-        $totalRows = (int) ($summary->total_rows ?? 0);
-        $perPage = max(1, min(100, (int) $request->query('per_page', 10)));
-        $lastPage = max(1, (int) ceil($totalRows / $perPage));
-        $page = max(1, min((int) $request->query('page', 1), $lastPage));
-
-        $baseQuery = $query
-            ->select(['id', 'member_id', 'member_name', 'investment_id', 'income_amount', 'on_amount', 'created_at'])
-            ->orderByDesc('created_at')
-            ->orderByDesc('id');
-
-        $transactions = $this->paginateWithCursor($baseQuery, $page, $perPage, $totalRows, $request);
+        $totalAmount = (clone $query)->sum('income_amount');
+        $transactions = $query->latest()->paginate(10)->withQueryString();
 
         return view('admin.reports.roi-report', [
             'transactions' => $transactions,
@@ -68,22 +53,14 @@ class ReportController extends Controller
     public function levelIncomeReport(Request $request)
     {
         $query = $this->levelIncomeQuery($request);
-
-        $aggregate = $this->levelIncomeReportSummary($request, $query);
-
-        $totalAmount = $this->formatDecimalAmount((string) ($aggregate->total_amount ?? '0'));
+        $totalAmount = (clone $query)->sum('income_amount');
         $perPage = max(1, min(100, (int) $request->query('per_page', 50)));
-        $totalRows = (int) ($aggregate->total_rows ?? 0);
-        $lastPage = max(1, (int) ceil($totalRows / $perPage));
-        $page = max(1, min(max(1, (int) $request->query('page', 1)), $lastPage));
-
-        $baseQuery = $query
+        $transactions = $query
             ->select(['id', 'member_id', 'member_name', 'from_member_id', 'level', 'income_amount', 'on_amount', 'created_at'])
-            ->orderByDesc('created_at')
-            ->orderByDesc('id');
-
-        $transactions = $this->paginateWithCursor($baseQuery, $page, $perPage, $totalRows, $request);
-
+            ->latest('created_at')
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString();
         $levels = LevelCommissionTransaction::query()
             ->whereNotNull('level')
             ->distinct()
@@ -228,9 +205,7 @@ class ReportController extends Controller
 
         if ($request->filled('member_id')) {
             $memberId = trim((string) $request->query('member_id'));
-            if ($memberId !== '') {
-                $query->where('member_id', 'like', $memberId . '%');
-            }
+            $query->where('member_id', 'like', '%' . $memberId . '%');
         }
 
         if ($request->filled('rank_id')) {
@@ -255,19 +230,7 @@ class ReportController extends Controller
     {
         if ($request->filled('member_id')) {
             $memberId = trim((string) $request->query('member_id'));
-            if ($memberId !== '') {
-                $memberIds = Member::query()
-                    ->where('member_id', 'like', $memberId . '%')
-                    ->pluck('member_id')
-                    ->all();
-
-                if ($memberIds === []) {
-                    $query->whereRaw('1 = 0');
-                    return;
-                }
-
-                $query->whereIn('member_id', $memberIds);
-            }
+            $query->where('member_id', 'like', '%' . $memberId . '%');
         }
 
         if ($request->filled('from_date')) {
@@ -279,142 +242,8 @@ class ReportController extends Controller
         }
     }
 
-    protected function paginateWithCursor($query, int $page, int $perPage, int $totalRows, Request $request): LengthAwarePaginator
-    {
-        if ($page > 1) {
-            $previousPageOffset = max(0, (($page - 1) * $perPage) - 1);
-            $cursor = (clone $query)
-                ->select(['created_at', 'id'])
-                ->offset($previousPageOffset)
-                ->limit(1)
-                ->first();
-
-            if ($cursor) {
-                $query->where(function ($where) use ($cursor): void {
-                    $where->where('created_at', '<', $cursor->created_at)
-                        ->orWhere(function ($orWhere) use ($cursor): void {
-                            $orWhere->where('created_at', $cursor->created_at)
-                                ->where('id', '<', $cursor->id);
-                        });
-                });
-            }
-        }
-
-        $items = $query
-            ->limit($perPage)
-            ->get();
-
-        return new LengthAwarePaginator(
-            $items,
-            $totalRows,
-            $perPage,
-            $page,
-            [
-                'path' => $request->url(),
-                'query' => $request->query(),
-            ]
-        );
-    }
-
     protected function formatUsdt($amount): string
     {
-        return $this->formatDecimalAmount((string) $amount);
-    }
-
-    protected function roiReportSummary(Request $request, $rawQuery): object
-    {
-        $generationId = app(ReportSummaryService::class)->activeGenerationId();
-        if ($generationId === null) {
-            return (clone $rawQuery)
-                ->selectRaw('COALESCE(SUM(income_amount), 0) as total_amount, COUNT(*) as total_rows')
-                ->first();
-        }
-
-        $memberId = trim((string) $request->query('member_id', ''));
-        $table = $memberId === ''
-            ? 'roi_report_global_daily_summaries'
-            : 'roi_report_member_daily_summaries';
-
-        $summaryQuery = \Illuminate\Support\Facades\DB::table($table)
-            ->where('generation_id', $generationId);
-
-        if ($memberId !== '') {
-            $memberIds = Member::query()
-                ->where('member_id', 'like', $memberId . '%')
-                ->select('member_id');
-            $summaryQuery->whereIn('member_id', $memberIds);
-        }
-
-        $this->applySummaryDateFilters($summaryQuery, $request);
-
-        return $summaryQuery
-            ->selectRaw('COALESCE(SUM(total_income_amount), 0) as total_amount, COALESCE(SUM(transaction_count), 0) as total_rows')
-            ->first();
-    }
-
-    protected function levelIncomeReportSummary(Request $request, $rawQuery): object
-    {
-        $generationId = app(ReportSummaryService::class)->activeGenerationId();
-        if ($generationId === null) {
-            return (clone $rawQuery)
-                ->selectRaw('COALESCE(SUM(income_amount), 0) as total_amount, COUNT(*) as total_rows')
-                ->first();
-        }
-
-        $memberId = trim((string) $request->query('member_id', ''));
-        $level = trim((string) $request->query('level', ''));
-        if ($memberId !== '') {
-            $table = 'level_commission_report_member_level_daily_summaries';
-        } elseif ($level !== '') {
-            $table = 'level_commission_report_level_daily_summaries';
-        } else {
-            $table = 'level_commission_report_global_daily_summaries';
-        }
-
-        $summaryQuery = \Illuminate\Support\Facades\DB::table($table)
-            ->where('generation_id', $generationId);
-
-        if ($memberId !== '') {
-            $memberIds = Member::query()
-                ->where('member_id', 'like', $memberId . '%')
-                ->select('member_id');
-            $summaryQuery->whereIn('member_id', $memberIds);
-        }
-
-        if ($level !== '') {
-            $summaryQuery->where('level', $level);
-        }
-
-        $this->applySummaryDateFilters($summaryQuery, $request);
-
-        return $summaryQuery
-            ->selectRaw('COALESCE(SUM(total_income_amount), 0) as total_amount, COALESCE(SUM(transaction_count), 0) as total_rows')
-            ->first();
-    }
-
-    protected function applySummaryDateFilters($query, Request $request): void
-    {
-        if ($request->filled('from_date')) {
-            $fromDate = CarbonImmutable::parse($request->query('from_date'))->startOfDay();
-            $query->where('date_key', '>=', (int) $fromDate->format('Ymd'));
-        }
-
-        if ($request->filled('to_date')) {
-            $toDate = CarbonImmutable::parse($request->query('to_date'))->startOfDay();
-            $query->where('date_key', '<=', (int) $toDate->format('Ymd'));
-        }
-    }
-
-    protected function formatDecimalAmount(string $amount): string
-    {
-        if (! str_contains($amount, '.')) {
-            return $amount === '-0' ? '0' : $amount;
-        }
-
-        [$integer, $fraction] = explode('.', $amount, 2);
-        $fraction = rtrim($fraction, '0');
-        $formatted = $fraction === '' ? $integer : $integer . '.' . $fraction;
-
-        return $formatted === '-0' ? '0' : $formatted;
+        return rtrim(rtrim(number_format((float) $amount, 4, '.', ''), '0'), '.') ?: '0';
     }
 }
