@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 
 class RankAdvance extends Command
 {
+    private const ACHIEVEMENT_INSERT_BATCH_SIZE = 500;
+
     protected $signature = 'rank:advance {--member-id= : Limit the one-step advancement to a specific member} {--member-prefix= : Limit processing to a member ID prefix}';
 
     protected $description = 'Advance each qualifying demo member by exactly one rank using the real rank rules.';
@@ -73,21 +75,32 @@ class RankAdvance extends Command
             }
 
             if ($desiredRankId !== $member->rank_id) {
-                $rankUpdates[(string) ($desiredRankId ?? 'null')][] = $memberId;
+                $rankUpdates[(string) ($member->rank_id ?? 'null')][(string) ($desiredRankId ?? 'null')][] = $memberId;
                 $changed++;
             }
         }
 
         DB::transaction(function () use ($rankUpdates, $newAchievements): void {
-            foreach ($rankUpdates as $rankId => $ids) {
-                Member::query()->whereIn('member_id', $ids)->update([
-                    'rank_id' => $rankId === 'null' ? null : (int) $rankId,
-                    'updated_at' => now(),
-                ]);
+            foreach ($rankUpdates as $currentRankId => $updatesByRankId) {
+                foreach ($updatesByRankId as $rankId => $ids) {
+                    $query = Member::query()->whereIn('member_id', $ids);
+                    if ($currentRankId === 'null') {
+                        $query->whereNull('rank_id');
+                    } else {
+                        $query->where('rank_id', (int) $currentRankId);
+                    }
+
+                    $query->update([
+                        'rank_id' => $rankId === 'null' ? null : (int) $rankId,
+                        'updated_at' => now(),
+                    ]);
+                }
             }
 
             if ($newAchievements !== []) {
-                RankAchievement::query()->insert($newAchievements);
+                foreach (array_chunk($newAchievements, self::ACHIEVEMENT_INSERT_BATCH_SIZE) as $achievementBatch) {
+                    RankAchievement::query()->insertOrIgnore($achievementBatch);
+                }
             }
         });
 

@@ -9,7 +9,9 @@ use App\Models\RankAchievement;
 use App\Models\User;
 use App\Services\RankService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class RankAchievementReportTest extends TestCase
@@ -57,6 +59,76 @@ class RankAchievementReportTest extends TestCase
         $service->syncMemberRankAchievement($root);
 
         $this->assertSame(1, RankAchievement::query()->where('member_id', $root->member_id)->count());
+    }
+
+    public function test_rank_advance_batches_more_than_ten_thousand_achievements_and_is_safe_to_retry(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+        $silver = Rank::query()->where('name', 'Silver')->firstOrFail();
+        $this->insertBulkRankMembers(10001);
+        $this->bindQualifyingRankCalculations($silver, 2);
+
+        $insertBindingCounts = [];
+        DB::listen(function (QueryExecuted $query) use (&$insertBindingCounts): void {
+            if ($this->isRankAchievementInsert($query)) {
+                $insertBindingCounts[] = count($query->bindings);
+            }
+        });
+
+        $this->artisan('rank:advance')->assertExitCode(0);
+
+        $this->assertSame(10001, RankAchievement::query()->count());
+        $this->assertCount(21, $insertBindingCounts);
+        $this->assertSame(10001 * 7, array_sum($insertBindingCounts));
+        $this->assertLessThanOrEqual(500 * 7, max($insertBindingCounts));
+        $this->assertSame($silver->id, (int) Member::query()->where('member_id', 'BATCH-RANK-00001')->value('rank_id'));
+
+        $this->artisan('rank:advance')->assertExitCode(0);
+
+        $this->assertSame(10001, RankAchievement::query()->count());
+        $this->assertSame($silver->id, (int) Member::query()->where('member_id', 'BATCH-RANK-00001')->value('rank_id'));
+    }
+
+    public function test_rank_advance_rolls_back_all_batches_and_rank_updates_when_a_batch_fails(): void
+    {
+        $this->seed(\Database\Seeders\RankSeeder::class);
+        $silver = Rank::query()->where('name', 'Silver')->firstOrFail();
+        $this->insertBulkRankMembers(501);
+        $this->bindQualifyingRankCalculations($silver, 3);
+
+        $achievementInsertCount = 0;
+        $failureInjected = false;
+        DB::listen(function (QueryExecuted $query) use (&$achievementInsertCount, &$failureInjected): void {
+            if (! $this->isRankAchievementInsert($query)) {
+                return;
+            }
+
+            $achievementInsertCount++;
+            if ($achievementInsertCount === 2 && ! $failureInjected) {
+                $failureInjected = true;
+                throw new \RuntimeException('Simulated second-batch insert failure.');
+            }
+        });
+
+        try {
+            $this->artisan('rank:advance');
+            $this->fail('The simulated second-batch failure should escape the command call.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Simulated second-batch insert failure.', $exception->getMessage());
+        }
+
+        $this->assertTrue($failureInjected);
+        $this->assertSame(0, RankAchievement::query()->count());
+        $this->assertSame(501, Member::query()->whereNull('rank_id')->count());
+
+        $this->artisan('rank:advance')->assertExitCode(0);
+
+        $this->assertSame(501, RankAchievement::query()->count());
+        $this->assertSame(0, Member::query()->whereNull('rank_id')->count());
+
+        $this->artisan('rank:advance')->assertExitCode(0);
+
+        $this->assertSame(501, RankAchievement::query()->count());
     }
 
     public function test_higher_rank_achievement_preserves_previous_rank_history(): void
@@ -536,6 +608,51 @@ class RankAchievementReportTest extends TestCase
             'email' => strtolower($id) . '@example.test',
             'status' => 'active',
         ]);
+    }
+
+    private function insertBulkRankMembers(int $count): void
+    {
+        $now = now();
+        for ($start = 1; $start <= $count; $start += 500) {
+            $members = [];
+            $end = min($start + 499, $count);
+            for ($number = $start; $number <= $end; $number++) {
+                $memberId = 'BATCH-RANK-' . str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+                $members[] = [
+                    'member_id' => $memberId,
+                    'sponsor_id' => 'ST666666',
+                    'sponsor_name' => 'Admin',
+                    'member_name' => 'Batch Rank ' . $number,
+                    'mobile_no' => (string) (7000000000 + $number),
+                    'email' => strtolower($memberId) . '@example.test',
+                    'status' => 'active',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            DB::table('members')->insert($members);
+        }
+    }
+
+    private function bindQualifyingRankCalculations(Rank $rank, int $expectedCalls): void
+    {
+        $rankService = \Mockery::mock(RankService::class);
+        $rankService->shouldReceive('calculateForMembers')
+            ->times($expectedCalls)
+            ->andReturnUsing(fn (array $memberIds): array => array_fill_keys($memberIds, [
+                'full_team_business' => '6000.0000',
+                'current_rank' => $rank,
+            ]));
+
+        $this->app->instance(RankService::class, $rankService);
+    }
+
+    private function isRankAchievementInsert(QueryExecuted $query): bool
+    {
+        $sql = strtolower(ltrim($query->sql));
+
+        return str_starts_with($sql, 'insert') && str_contains($sql, 'rank_achievements');
     }
 
     private function rankAchievementFor(Member $member, string $rankName, string $businessAmount, ?string $achievedAt = null): void

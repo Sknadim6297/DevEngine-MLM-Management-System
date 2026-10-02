@@ -6,6 +6,7 @@ use App\Models\Investment;
 use App\Models\LevelCommission;
 use App\Models\LevelCommissionTransaction;
 use App\Models\Member;
+use App\Models\RoiTransaction;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use App\Services\LevelCommissionGenerationService;
@@ -145,6 +146,44 @@ class WorkingWalletCommissionTest extends TestCase
         $this->assertSame(1, (int) DB::table('level_commission_report_global_daily_summaries')
             ->where('generation_id', $generationId)
             ->sum('transaction_count'));
+    }
+
+    public function test_level_commission_uses_only_the_remaining_combined_income_cap(): void
+    {
+        $memberA = $this->member('MB210001', 'ST666666');
+        $memberB = $this->member('MB210002', $memberA->member_id);
+        $investment = $this->investment($memberB, 'INVCAP001', '100.0000');
+        $this->investment($memberB, 'INVQUALCAP', '6000.0000');
+
+        RoiTransaction::query()->create([
+            'reference' => 'ROI-INVCAP001-20260901',
+            'investment_id' => $investment->investment_id,
+            'member_id' => $memberB->member_id,
+            'member_name' => $memberB->member_name,
+            'on_amount' => '100.0000',
+            'rate_percentage' => '5.000',
+            'income_amount' => '299.5000',
+            'roi_date' => '2026-09-01',
+            'status' => 'generated',
+            'withdrawable_on' => '2026-10-01',
+        ]);
+
+        app(LevelCommissionGenerationService::class)->generateForInvestment(
+            $investment,
+            CarbonImmutable::parse('2026-09-02', 'Asia/Kolkata')
+        );
+
+        $commission = LevelCommissionTransaction::query()
+            ->where('investment_id', $investment->investment_id)
+            ->firstOrFail();
+        $this->assertSame('0.5000', (string) $commission->income_amount);
+        $this->assertSame('0.5000', (string) $memberA->fresh()->working_wallet_amount);
+        $this->assertSame('expired', $investment->fresh()->status);
+        $this->assertSame('300.0000', bcadd(
+            (string) RoiTransaction::query()->where('investment_id', $investment->investment_id)->sum('income_amount'),
+            (string) LevelCommissionTransaction::query()->where('investment_id', $investment->investment_id)->sum('income_amount'),
+            4
+        ));
     }
 
     public function test_missing_sponsor_stops_the_chain_without_error(): void

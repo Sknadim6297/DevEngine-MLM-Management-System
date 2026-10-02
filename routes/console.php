@@ -9,40 +9,25 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 $roiSchedule = Schedule::command(
-    app()->environment(['local', 'testing'])
+    app()->environment(['local', 'testing', 'staging'])
         ? 'roi:generate --testing-period'
         : 'roi:generate'
-)->timezone('Asia/Kolkata')->withoutOverlapping();
+)->timezone('Asia/Kolkata');
 
 $roiSchedule->onOneServer();
-
-if (app()->environment(['local', 'testing'])) {
-    $roiSchedule->everyMinute();
-} else {
-    $roiSchedule->dailyAt('00:00');
-}
+$roiSchedule->everyMinute();
 
 $levelCommissionSchedule = Schedule::command(
-    app()->environment(['local', 'testing'])
+    app()->environment(['local', 'testing', 'staging'])
         ? 'commission:generate-level --testing-period'
         : 'commission:generate-level'
-)->timezone('Asia/Kolkata')->withoutOverlapping();
+)->timezone('Asia/Kolkata');
 
 $levelCommissionSchedule->runInBackground()->onOneServer();
-
-if (app()->environment(['local', 'testing'])) {
-    $levelCommissionSchedule->everyMinute();
-} else {
-    $levelCommissionSchedule->dailyAt('00:00');
-}
+$levelCommissionSchedule->everyMinute();
 
 $rankProgressionSchedule = Schedule::command('rank:advance')
     ->timezone('Asia/Kolkata')
-    ->withoutOverlapping()
     ->onOneServer();
 
-if (app()->environment(['local', 'testing'])) {
-    $rankProgressionSchedule->everyMinute();
-} else {
-    $rankProgressionSchedule->dailyAt('00:00');
-}
+$rankProgressionSchedule->everyMinute();

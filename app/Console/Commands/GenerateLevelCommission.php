@@ -26,8 +26,8 @@ class GenerateLevelCommission extends Command
             ? CarbonImmutable::parse($this->option('date'), 'Asia/Kolkata')->startOfDay()
             : CarbonImmutable::now('Asia/Kolkata')->startOfDay());
 
-        if ($this->option('testing-period') && ! app()->environment(['local', 'testing'])) {
-            $this->error('The --testing-period option is only available in local or testing environments.');
+        if ($this->option('testing-period') && ! app()->environment(['local', 'testing', 'staging'])) {
+            $this->error('The --testing-period option is only available in local, testing, or staging environments.');
 
             return self::FAILURE;
         }

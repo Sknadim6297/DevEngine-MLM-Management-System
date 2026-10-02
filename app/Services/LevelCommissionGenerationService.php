@@ -141,36 +141,102 @@ class LevelCommissionGenerationService
             return $result;
         }
 
-        $rows = array_map(function (array $entry) use ($investment, $businessDate): array {
-            $member = $entry['member'];
-            return [
-                'reference' => 'LC-' . $investment->investment_id . '-' . $member->member_id . '-' . $businessDate->format('Ymd'),
-                'investment_id' => $investment->investment_id,
-                'member_id' => $member->member_id,
-                'member_name' => $member->member_name,
-                'from_member_id' => $investment->member_id,
-                'from_member_name' => $investment->member_name,
-                'level' => $entry['level'],
-                'business_date' => $businessDate->toDateString(),
-                'on_amount' => $investment->amount,
-                'rate_percentage' => $entry['rate'],
-                'income_amount' => $entry['income_amount'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }, $newEntries);
+        $generatedCount = DB::transaction(function () use ($newEntries, $investment, $businessDate, &$result): int {
+            $lockedInvestment = Investment::query()->lockForUpdate()->find($investment->id);
+            if (! $lockedInvestment || $lockedInvestment->status !== 'active') {
+                return 0;
+            }
 
-        $generatedCount = DB::transaction(function () use ($rows, $newEntries, $investment, $businessDate, &$result): int {
+            $candidateMemberIds = array_map(
+                fn (array $entry): string => $entry['member']->member_id,
+                $newEntries
+            );
+            $existingMemberIds = LevelCommissionTransaction::query()
+                ->where('investment_id', $lockedInvestment->investment_id)
+                ->whereIn('member_id', $candidateMemberIds)
+                ->whereDate('business_date', $businessDate->toDateString())
+                ->pluck('member_id')
+                ->all();
+            $alreadyProcessed = array_fill_keys($existingMemberIds, true);
+            $candidates = array_values(array_filter(
+                $newEntries,
+                fn (array $entry): bool => ! isset($alreadyProcessed[$entry['member']->member_id])
+            ));
+            $result['skipped'] += count($newEntries) - count($candidates);
+
+            $cap = bcmul((string) $lockedInvestment->amount, '3', self::MONEY_SCALE);
+            $roiIncome = (string) \App\Models\RoiTransaction::query()
+                ->where('investment_id', $lockedInvestment->investment_id)
+                ->sum('income_amount');
+            $levelIncome = (string) LevelCommissionTransaction::query()
+                ->where('investment_id', $lockedInvestment->investment_id)
+                ->sum('income_amount');
+            $remainingCap = bcsub($cap, bcadd($roiIncome, $levelIncome, self::MONEY_SCALE), self::MONEY_SCALE);
+
+            if (bccomp($remainingCap, '0', self::MONEY_SCALE) <= 0) {
+                $lockedInvestment->update([
+                    'status' => 'expired',
+                    'closed_at' => $lockedInvestment->closed_at ?? now(),
+                    'closing_amount' => $cap,
+                ]);
+
+                return 0;
+            }
+
+            $cappedEntries = [];
+            $rows = [];
+            foreach ($candidates as $entry) {
+                if (bccomp($remainingCap, '0', self::MONEY_SCALE) <= 0) {
+                    break;
+                }
+
+                $calculatedIncome = bcdiv(
+                    bcmul((string) $lockedInvestment->amount, $entry['rate'], 8),
+                    '100',
+                    self::MONEY_SCALE
+                );
+                $incomeAmount = bccomp($calculatedIncome, $remainingCap, self::MONEY_SCALE) > 0
+                    ? $remainingCap
+                    : $calculatedIncome;
+                if (bccomp($incomeAmount, '0', self::MONEY_SCALE) <= 0) {
+                    continue;
+                }
+
+                $cappedEntries[] = array_merge($entry, ['income_amount' => $incomeAmount]);
+                $member = $entry['member'];
+                $rows[] = [
+                    'reference' => 'LC-' . $lockedInvestment->investment_id . '-' . $member->member_id . '-' . $businessDate->format('Ymd'),
+                    'investment_id' => $lockedInvestment->investment_id,
+                    'member_id' => $member->member_id,
+                    'member_name' => $member->member_name,
+                    'from_member_id' => $lockedInvestment->member_id,
+                    'from_member_name' => $lockedInvestment->member_name,
+                    'level' => $entry['level'],
+                    'business_date' => $businessDate->toDateString(),
+                    'on_amount' => $lockedInvestment->amount,
+                    'rate_percentage' => $entry['rate'],
+                    'income_amount' => $incomeAmount,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+                $remainingCap = bcsub($remainingCap, $incomeAmount, self::MONEY_SCALE);
+            }
+            $result['skipped'] += count($candidates) - count($cappedEntries);
+
+            if ($cappedEntries === []) {
+                return 0;
+            }
+
             $successfulEntries = [];
             try {
                 LevelCommissionTransaction::query()->insert($rows);
-                $successfulEntries = $newEntries;
+                $successfulEntries = $cappedEntries;
             } catch (QueryException $exception) {
                 if (! $this->isDuplicateKeyException($exception)) {
                     throw $exception;
                 }
 
-                foreach ($newEntries as $index => $entry) {
+                foreach ($cappedEntries as $index => $entry) {
                     try {
                         LevelCommissionTransaction::query()->insert([$rows[$index]]);
                         $successfulEntries[] = $entry;
@@ -219,6 +285,14 @@ class LevelCommissionGenerationService
             }
 
             $this->applyWalletDeltas($walletDeltas);
+
+            if (bccomp($remainingCap, '0', self::MONEY_SCALE) <= 0) {
+                $lockedInvestment->update([
+                    'status' => 'expired',
+                    'closed_at' => now(),
+                    'closing_amount' => $cap,
+                ]);
+            }
 
             return count($successfulEntries);
         }, 3);
