@@ -21,6 +21,8 @@ class RoiTransaction extends Model
         'roi_date',
         'status',
         'withdrawable_on',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [

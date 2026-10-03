@@ -10,6 +10,7 @@ use App\Models\RoiTransaction;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use App\Services\LevelCommissionGenerationService;
+use App\Services\RoiGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -184,6 +185,57 @@ class WorkingWalletCommissionTest extends TestCase
             (string) LevelCommissionTransaction::query()->where('investment_id', $investment->investment_id)->sum('income_amount'),
             4
         ));
+    }
+
+    public function test_commission_cannot_credit_after_roi_consumes_the_shared_remaining_cap(): void
+    {
+        $upline = $this->member('MB220001', 'ST666666');
+        $source = $this->member('MB220002', $upline->member_id);
+        $this->investment($source, 'INVQUAL2200', '6000.0000');
+        $investment = $this->investment($source, 'INVCAP2200', '100.0000');
+        $createdAt = CarbonImmutable::parse('2021-01-01', 'Asia/Kolkata')->setTimezone('UTC');
+        $investment->forceFill(['created_at' => $createdAt, 'updated_at' => $createdAt])->save();
+        $source->roi_wallet_amount = '299.9000';
+        $source->save();
+
+        RoiTransaction::query()->create([
+            'reference' => 'ROI-INVCAP2200-HISTORY',
+            'investment_id' => $investment->investment_id,
+            'member_id' => $source->member_id,
+            'member_name' => $source->member_name,
+            'on_amount' => '100.0000',
+            'rate_percentage' => '5.000',
+            'income_amount' => '299.9000',
+            'roi_date' => '2026-09-01',
+            'status' => 'generated',
+            'withdrawable_on' => '2026-10-01',
+        ]);
+
+        $businessDate = CarbonImmutable::parse('2026-09-02', 'Asia/Kolkata');
+        app(RoiGenerationService::class)->generateForDate($businessDate, 'INVCAP2200');
+        $commissionResult = app(LevelCommissionGenerationService::class)
+            ->generateForInvestment($investment->fresh(), $businessDate);
+
+        $this->assertSame(0, $commissionResult['generated']);
+        $this->assertSame('expired', $investment->fresh()->status);
+        $this->assertSame('300.0000', bcadd((string) RoiTransaction::query()
+            ->where('investment_id', $investment->investment_id)
+            ->sum('income_amount'), '0', 4));
+        $this->assertSame('0.0000', bcadd((string) LevelCommissionTransaction::query()
+            ->where('investment_id', $investment->investment_id)
+            ->sum('income_amount'), '0', 4));
+        $this->assertSame('300.0000', bcadd((string) $source->fresh()->roi_wallet_amount, '0', 4));
+        $this->assertSame('0.0000', bcadd((string) $upline->fresh()->working_wallet_amount, '0', 4));
+    }
+
+    public function test_future_commission_command_is_rejected_in_production_environment(): void
+    {
+        $this->app->instance('env', 'local');
+        config(['financial.accelerated.enabled' => false]);
+
+        $this->artisan('commission:generate-level --date=2040-01-01')->assertExitCode(1);
+
+        $this->assertDatabaseCount('level_commission_transactions', 0);
     }
 
     public function test_missing_sponsor_stops_the_chain_without_error(): void

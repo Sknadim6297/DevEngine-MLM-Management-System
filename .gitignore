@@ -1,6 +1,7 @@
 *.log
 .DS_Store
 .env
+.env.simulation
 .env.backup
 .env.production
 .phpactor.json
@@ -22,3 +23,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+/benchmark1m.txt
+/leveltest.txt
+/out.txt
+/output.txt
+/test_output.txt
+/storage/app/rank-progression-test-data.json

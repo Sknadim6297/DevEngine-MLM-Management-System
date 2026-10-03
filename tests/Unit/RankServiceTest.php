@@ -6,6 +6,7 @@ use App\Models\Investment;
 use App\Models\Member;
 use App\Models\Rank;
 use App\Services\RankService;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RankSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -62,10 +63,10 @@ class RankServiceTest extends TestCase
 
         $result = app(RankService::class)->calculateForMember($root);
 
-        $this->assertSame('6500.0000', $result['full_team_business']);
-        $this->assertSame('Silver', $result['current_rank']?->name);
-        $this->assertSame('5500.0000', $result['remaining_business']);
-        $this->assertSame(['STDIRECT1', 'STINDIRECT1'], $result['team_member_ids']);
+        $this->assertSame('15500.0000', $result['full_team_business']);
+        $this->assertSame('Gold', $result['current_rank']?->name);
+        $this->assertSame('9500.0000', $result['remaining_business']);
+        $this->assertSame(['STROOT001', 'STDIRECT1', 'STINDIRECT1'], $result['team_member_ids']);
     }
 
     public function test_cycle_and_duplicate_references_do_not_loop_or_duplicate_business(): void
@@ -78,7 +79,7 @@ class RankServiceTest extends TestCase
 
         $this->assertSame('6000.0000', $result['full_team_business']);
         $this->assertSame('Silver', $result['current_rank']?->name);
-        $this->assertSame(['STCYCLE02'], $result['team_member_ids']);
+        $this->assertSame(['STCYCLE01', 'STCYCLE02'], $result['team_member_ids']);
     }
 
     public function test_only_active_qualifying_investments_count_as_business(): void
@@ -94,6 +95,33 @@ class RankServiceTest extends TestCase
         $this->assertSame('100.0000', $result['full_team_business']);
         $this->assertNull($result['current_rank']);
         $this->assertSame('5900.0000', $result['remaining_business']);
+    }
+
+    public function test_future_direct_investments_do_not_unlock_level_four_before_their_business_date(): void
+    {
+        $root = $this->member('STROOT2040', 'Future Rank Root', 'ST666666');
+        $investmentDate = CarbonImmutable::parse('2040-01-01', 'Asia/Kolkata')
+            ->startOfDay()
+            ->setTimezone('UTC');
+
+        foreach (range(1, 4) as $number) {
+            $child = $this->member('STCHILD204' . $number, 'Future Rank Child ' . $number, $root->member_id);
+            $investment = $this->investment($child, 'INV2040' . $number, '100.0000');
+            $investment->forceFill([
+                'created_at' => $investmentDate,
+                'updated_at' => $investmentDate,
+            ])->save();
+        }
+
+        $beforeBusinessDate = app(RankService::class)->calculateForMember($root, null, '2039-12-31');
+        $onBusinessDate = app(RankService::class)->calculateForMember($root, null, '2040-01-01');
+
+        $this->assertSame('0.0000', $beforeBusinessDate['full_team_business']);
+        $this->assertSame(0, $beforeBusinessDate['direct_qualifying_member_count']);
+        $this->assertSame(0, $beforeBusinessDate['unlocked_levels']);
+        $this->assertSame('400.0000', $onBusinessDate['full_team_business']);
+        $this->assertSame(4, $onBusinessDate['direct_qualifying_member_count']);
+        $this->assertSame(4, $onBusinessDate['unlocked_levels']);
     }
 
     private function member(string $memberId, string $name, string $sponsorId): Member

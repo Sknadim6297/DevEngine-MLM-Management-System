@@ -3,46 +3,41 @@
     namespace App\Console\Commands;
 
     use App\Services\RoiGenerationService;
+    use App\Services\BusinessDateGuard;
     use Carbon\CarbonImmutable;
     use Illuminate\Console\Command;
     use Illuminate\Support\Facades\Log;
 
     class GenerateRoi extends Command
     {
-        protected $signature = 'roi:generate {--date= : Business date (YYYY-MM-DD) for a safe manual run} {--testing-period : Use a unique two-minute development testing period} {--investment-prefix= : Restrict processing to an investment ID prefix}';
+        protected $signature = 'roi:generate {--date= : Business date (YYYY-MM-DD) for a safe manual run}';
 
         protected $description = 'Generate daily ROI for eligible investments.';
 
-        public function handle(RoiGenerationService $roiGenerationService): int
+        public function handle(RoiGenerationService $roiGenerationService, BusinessDateGuard $businessDateGuard): int
         {
             $startedAt = microtime(true);
-            Log::info('Scheduled ROI generation started.', ['testing_period' => $this->option('testing-period')]);
+            Log::info('Scheduled ROI generation started.');
 
-            $date = $this->option('testing-period')
-                ? $this->testingPeriodDate()
-                : ($this->option('date')
+            $date = $this->option('date')
                 ? CarbonImmutable::parse($this->option('date'), RoiGenerationService::TIMEZONE)
-                : CarbonImmutable::now(RoiGenerationService::TIMEZONE));
+                : CarbonImmutable::now(RoiGenerationService::TIMEZONE);
 
-            if ($this->option('testing-period') && ! app()->environment(['local', 'testing', 'staging'])) {
-                $this->error('The --testing-period option is only available in local, testing, or staging environments.');
+            try {
+                $businessDateGuard->assertNotFuture($date);
+            } catch (\RuntimeException $exception) {
+                $this->error($exception->getMessage());
 
                 return self::FAILURE;
             }
 
-            $result = $roiGenerationService->generateForDate($date->startOfDay(), $this->option('investment-prefix'));
+            $result = $roiGenerationService->generateForDate($date->startOfDay());
 
-            $this->info("ROI processing completed for {$date->toDateString()}: {$result['generated']} generated, {$result['expired']} expired, {$result['skipped']} skipped.");
-            Log::info('Scheduled ROI generation finished.', $result + ['duration_seconds' => round(microtime(true) - $startedAt, 3), 'business_date' => $date->toDateString()]);
+            $duration = round(microtime(true) - $startedAt, 3);
+            $this->info("ROI processing completed for {$date->toDateString()}: {$result['eligible_investments']} eligible investments, {$result['generated']} generated, {$result['expired']} expired, {$result['skipped']} skipped, {$result['failed']} errors, {$duration} seconds.");
+            Log::info('Scheduled ROI generation finished.', $result + ['duration_seconds' => $duration, 'business_date' => $date->toDateString()]);
 
-            return self::SUCCESS;
+            return $result['failed'] > 0 ? self::FAILURE : self::SUCCESS;
         }
 
-        protected function testingPeriodDate(): CarbonImmutable
-        {
-            $now = CarbonImmutable::now(RoiGenerationService::TIMEZONE);
-            $minutesSinceMidnight = $now->hour * 60 + $now->minute;
-
-            return $now->startOfDay()->addDays(intdiv($minutesSinceMidnight, 2));
-        }
     }

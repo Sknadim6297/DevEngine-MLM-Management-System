@@ -331,50 +331,6 @@ class RankAchievementReportTest extends TestCase
         $this->get(route('admin.report.rank-achievement'))->assertRedirect(route('login'));
     }
 
-    public function test_rank_progression_test_dataset_resets_and_creates_exactly_ten_achievements(): void
-    {
-        $this->seed(\Database\Seeders\RankSeeder::class);
-
-        $admin = User::factory()->create(['is_admin' => true]);
-        $this->actingAs($admin);
-
-        Member::query()->create([
-            'member_id' => 'LEGACY-ALPHA',
-            'sponsor_id' => 'ST666666',
-            'sponsor_name' => 'Admin',
-            'member_name' => 'Legacy Alpha',
-            'mobile_no' => '9876500001',
-            'pan_card_no' => 'LEGACY1',
-            'email' => 'legacy.alpha@example.test',
-            'status' => 'active',
-            'rank_id' => Rank::where('name', 'Blue Diamond')->value('id'),
-        ]);
-
-        RankAchievement::query()->create([
-            'member_id' => 'LEGACY-ALPHA',
-            'member_name' => 'Legacy Alpha',
-            'rank_id' => Rank::where('name', 'Diamond')->value('id'),
-            'qualifying_business_amount' => '250000.0000',
-            'achieved_at' => now('Asia/Kolkata')->subDay(),
-        ]);
-
-        $this->artisan('rank:test-dataset')->assertExitCode(0);
-
-        $this->assertSame(10, RankAchievement::query()->count());
-        $this->assertSame(0, Member::query()->whereNotNull('rank_id')->where('member_id', 'not like', 'DEMO-%')->count());
-        $this->assertSame('Master Blaster', Member::where('member_id', 'DEMO-101')->first()->rank?->name);
-
-        $this->get(route('admin.report.rank-achievement'))
-            ->assertOk()
-            ->assertSeeText('DEMO-101')
-            ->assertSeeText('DEMO-104')
-            ->assertDontSeeText('LEGACY-ALPHA');
-
-        $this->assertDatabaseHas('rank_achievements', ['member_id' => 'DEMO-101', 'rank_id' => Rank::where('name', 'Diamond')->value('id')]);
-        $this->assertDatabaseHas('rank_achievements', ['member_id' => 'DEMO-101', 'rank_id' => Rank::where('name', 'Blue Diamond')->value('id')]);
-        $this->assertDatabaseHas('rank_achievements', ['member_id' => 'DEMO-101', 'rank_id' => Rank::where('name', 'Master Blaster')->value('id')]);
-    }
-
     public function test_rank_advance_only_awards_the_immediate_next_rank_for_demo_members(): void
     {
         $this->seed(\Database\Seeders\RankSeeder::class);

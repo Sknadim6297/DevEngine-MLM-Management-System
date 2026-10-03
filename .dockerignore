@@ -13,7 +13,14 @@ storage/framework/cache/data/*
 storage/framework/sessions/*
 storage/framework/views/*
 tests
+database/recovery-migrations
 docker-compose.yml
 Dockerfile
 *.log
 *.sqlite
+/benchmark1m.txt
+/leveltest.txt
+/out.txt
+/output.txt
+/test_output.txt
+/storage/app/rank-progression-test-data.json

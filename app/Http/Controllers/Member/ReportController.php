@@ -9,6 +9,8 @@ use App\Models\Member;
 use App\Models\RankAchievement;
 use App\Models\RoiTransaction;
 use App\Services\RankService;
+use App\Services\ReportSummaryService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
@@ -16,11 +18,16 @@ use Illuminate\View\View;
 
 class ReportController extends Controller
 {
-    public function roiReport(Request $request): View
+    public function roiReport(Request $request, ReportSummaryService $summaryService): View
     {
         $member = $this->currentMember($request);
         $query = $this->roiQuery($member, $request);
-        $totalAmount = (clone $query)->sum('income_amount');
+        $totalAmount = $summaryService->roiReportTotal(
+            $member->member_id,
+            $this->dateKey($request, 'from_date'),
+            $this->dateKey($request, 'to_date'),
+        ) ?? (string) (clone $query)->sum('income_amount');
+        $totalAmount = $this->formatDecimalAmount($totalAmount);
 
         return view('member.reports.roi-report', [
             'member' => $member,
@@ -46,11 +53,18 @@ class ReportController extends Controller
         });
     }
 
-    public function levelIncomeReport(Request $request, RankService $rankService): View
+    public function levelIncomeReport(Request $request, RankService $rankService, ReportSummaryService $summaryService): View
     {
         $member = $this->currentMember($request);
         $query = $this->levelIncomeQuery($member, $request);
-        $totalAmount = (clone $query)->sum('income_amount');
+        $level = $request->filled('level') ? (int) $request->query('level') : null;
+        $totalAmount = $summaryService->levelCommissionReportTotal(
+            $member->member_id,
+            $level,
+            $this->dateKey($request, 'from_date'),
+            $this->dateKey($request, 'to_date'),
+        ) ?? (string) (clone $query)->sum('income_amount');
+        $totalAmount = $this->formatDecimalAmount($totalAmount);
         $levels = LevelCommissionTransaction::query()
             ->where('member_id', $member->member_id)
             ->whereNotNull('level')
@@ -180,6 +194,13 @@ class ReportController extends Controller
         }
     }
 
+    private function dateKey(Request $request, string $field): ?int
+    {
+        return $request->filled($field)
+            ? (int) CarbonImmutable::parse($request->query($field))->format('Ymd')
+            : null;
+    }
+
     private function currentMember(Request $request): Member
     {
         return Member::where('member_id', $request->session()->get('member_context_id'))->firstOrFail();
@@ -204,5 +225,12 @@ class ReportController extends Controller
     private function formatUsdt($amount): string
     {
         return rtrim(rtrim(number_format((float) $amount, 4, '.', ''), '0'), '.') ?: '0';
+    }
+
+    private function formatDecimalAmount($amount): string
+    {
+        $formatted = bcadd((string) $amount, '0', 4);
+
+        return rtrim(rtrim($formatted, '0'), '.') ?: '0';
     }
 }

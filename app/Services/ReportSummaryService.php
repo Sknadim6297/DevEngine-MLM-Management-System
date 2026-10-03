@@ -10,6 +10,60 @@ use RuntimeException;
 
 class ReportSummaryService
 {
+    public function roiReportTotal(?string $memberSearch = null, ?int $fromDateKey = null, ?int $toDateKey = null): ?string
+    {
+        $generationId = $this->activeGenerationId();
+        if ($generationId === null) {
+            return null;
+        }
+
+        $table = $memberSearch !== null && $memberSearch !== ''
+            ? 'roi_report_member_daily_summaries'
+            : 'roi_report_global_daily_summaries';
+        $query = DB::table($table)->where('generation_id', $generationId);
+
+        if ($memberSearch !== null && $memberSearch !== '') {
+            $query->where('member_id', 'like', '%' . $memberSearch . '%');
+        }
+
+        $this->applyDateKeys($query, $fromDateKey, $toDateKey);
+
+        return bcadd((string) $query->sum('total_income_amount'), '0', 4);
+    }
+
+    public function levelCommissionReportTotal(
+        ?string $memberSearch = null,
+        ?int $level = null,
+        ?int $fromDateKey = null,
+        ?int $toDateKey = null,
+    ): ?string {
+        $generationId = $this->activeGenerationId();
+        if ($generationId === null) {
+            return null;
+        }
+
+        if ($memberSearch !== null && $memberSearch !== '') {
+            $table = 'level_commission_report_member_level_daily_summaries';
+        } elseif ($level !== null) {
+            $table = 'level_commission_report_level_daily_summaries';
+        } else {
+            $table = 'level_commission_report_global_daily_summaries';
+        }
+
+        $query = DB::table($table)->where('generation_id', $generationId);
+
+        if ($memberSearch !== null && $memberSearch !== '') {
+            $query->where('member_id', 'like', '%' . $memberSearch . '%');
+        }
+        if ($level !== null) {
+            $query->where('level', $level);
+        }
+
+        $this->applyDateKeys($query, $fromDateKey, $toDateKey);
+
+        return bcadd((string) $query->sum('total_income_amount'), '0', 4);
+    }
+
     public function addRoiTransaction(RoiTransaction $transaction): void
     {
         $generationId = $this->writableGenerationId();
@@ -75,6 +129,108 @@ class ReportSummaryService
         ], (string) $row->income_amount);
     }
 
+    /**
+     * Batch equivalent of addLevelCommissionTransaction(): same buckets and totals,
+     * but one state read, one row read and one upsert per summary table.
+     *
+     * @param  array<int, int>  $transactionIds
+     */
+    public function addLevelCommissionTransactions(array $transactionIds): void
+    {
+        if ($transactionIds === []) {
+            return;
+        }
+
+        $generationId = $this->writableGenerationId();
+        if ($generationId === null) {
+            return;
+        }
+
+        $rows = DB::table('level_commission_transactions')
+            ->select(['member_id', 'level', 'income_amount'])
+            ->selectRaw($this->dateKeyExpression() . ' AS date_key')
+            ->whereIn('id', $transactionIds)
+            ->get();
+
+        if ($rows->count() !== count($transactionIds)) {
+            throw new RuntimeException('The Level Commission transaction must be inserted before its report summary is updated.');
+        }
+
+        $global = [];
+        $levels = [];
+        $members = [];
+        foreach ($rows as $row) {
+            $amount = (string) $row->income_amount;
+            $keys = [
+                'global' => (string) $row->date_key,
+                'level' => $row->level . '|' . $row->date_key,
+                'member' => $row->member_id . '|' . $row->level . '|' . $row->date_key,
+            ];
+            foreach ($keys as $name => $key) {
+                $buckets[$name][$key] ??= ['count' => 0, 'amount' => '0.0000', 'row' => $row];
+                $buckets[$name][$key]['count']++;
+                $buckets[$name][$key]['amount'] = bcadd($buckets[$name][$key]['amount'], $amount, 4);
+            }
+        }
+        $global = $buckets['global'] ?? [];
+        $levels = $buckets['level'] ?? [];
+        $members = $buckets['member'] ?? [];
+
+        $this->incrementMany('level_commission_report_global_daily_summaries', array_map(
+            fn (array $b): array => ['dimensions' => ['generation_id' => $generationId, 'date_key' => $b['row']->date_key]] + $b,
+            array_values($global)
+        ));
+        $this->incrementMany('level_commission_report_level_daily_summaries', array_map(
+            fn (array $b): array => ['dimensions' => ['generation_id' => $generationId, 'level' => $b['row']->level, 'date_key' => $b['row']->date_key]] + $b,
+            array_values($levels)
+        ));
+        $this->incrementMany('level_commission_report_member_level_daily_summaries', array_map(
+            fn (array $b): array => ['dimensions' => [
+                'generation_id' => $generationId,
+                'member_id' => $b['row']->member_id,
+                'level' => $b['row']->level,
+                'date_key' => $b['row']->date_key,
+            ]] + $b,
+            array_values($members)
+        ));
+    }
+
+    private function incrementMany(string $table, array $buckets): void
+    {
+        if ($buckets === []) {
+            return;
+        }
+
+        $columns = array_keys($buckets[0]['dimensions']);
+        $quotedColumns = implode(', ', array_map(fn (string $column): string => '`' . $column . '`', $columns));
+        $tuple = '(' . implode(', ', array_fill(0, count($columns) + 2, '?')) . ')';
+        $bindings = [];
+        foreach ($buckets as $bucket) {
+            array_push($bindings, ...array_values($bucket['dimensions']), ...[$bucket['count'], $bucket['amount']]);
+        }
+
+        $sql = 'INSERT INTO `' . $table . '` (' . $quotedColumns . ', `transaction_count`, `total_income_amount`) VALUES '
+            . implode(', ', array_fill(0, count($buckets), $tuple));
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::statement(
+                $sql . ' ON CONFLICT (' . $quotedColumns . ') DO UPDATE SET '
+                    . '`transaction_count` = `transaction_count` + excluded.`transaction_count`, '
+                    . '`total_income_amount` = `total_income_amount` + excluded.`total_income_amount`',
+                $bindings
+            );
+
+            return;
+        }
+
+        DB::statement(
+            $sql . ' ON DUPLICATE KEY UPDATE '
+                . '`transaction_count` = `transaction_count` + VALUES(`transaction_count`), '
+                . '`total_income_amount` = `total_income_amount` + VALUES(`total_income_amount`)',
+            $bindings
+        );
+    }
+
     public function removeRoiTransaction(RoiTransaction|int $transaction): void
     {
         $generationId = $this->writableGenerationId();
@@ -138,6 +294,11 @@ class ReportSummaryService
             'level' => $row->level,
             'date_key' => $row->date_key,
         ], (string) $row->income_amount);
+    }
+
+    public function summaryWritesActive(): bool
+    {
+        return $this->writableGenerationId() !== null;
     }
 
     public function activeGenerationId(): ?int
@@ -241,5 +402,15 @@ class ReportSummaryService
         return DB::connection()->getDriverName() === 'sqlite'
             ? "COALESCE(CAST(strftime('%Y%m%d', created_at) AS INTEGER), 0)"
             : "COALESCE(CAST(DATE_FORMAT(created_at, '%Y%m%d') AS UNSIGNED), 0)";
+    }
+
+    private function applyDateKeys($query, ?int $fromDateKey, ?int $toDateKey): void
+    {
+        if ($fromDateKey !== null) {
+            $query->where('date_key', '>=', $fromDateKey);
+        }
+        if ($toDateKey !== null) {
+            $query->where('date_key', '<=', $toDateKey);
+        }
     }
 }

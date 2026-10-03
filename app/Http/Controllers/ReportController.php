@@ -7,15 +7,21 @@ use App\Models\Member;
 use App\Models\RankAchievement;
 use App\Models\RoiTransaction;
 use App\Services\RankService;
+use App\Services\ReportSummaryService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
-    public function roiReport(Request $request)
+    public function roiReport(Request $request, ReportSummaryService $summaryService)
     {
         $query = $this->roiQuery($request);
-        $totalAmount = (clone $query)->sum('income_amount');
+        $totalAmount = $summaryService->roiReportTotal(
+            $this->memberSearch($request),
+            $this->dateKey($request, 'from_date'),
+            $this->dateKey($request, 'to_date'),
+        ) ?? (string) (clone $query)->sum('income_amount');
+        $totalAmount = $this->formatDecimalAmount($totalAmount);
         $transactions = $query->latest()->paginate(10)->withQueryString();
 
         return view('admin.reports.roi-report', [
@@ -50,10 +56,17 @@ class ReportController extends Controller
         ]);
     }
 
-    public function levelIncomeReport(Request $request)
+    public function levelIncomeReport(Request $request, ReportSummaryService $summaryService)
     {
         $query = $this->levelIncomeQuery($request);
-        $totalAmount = (clone $query)->sum('income_amount');
+        $level = $request->filled('level') ? (int) $request->query('level') : null;
+        $totalAmount = $summaryService->levelCommissionReportTotal(
+            $this->memberSearch($request),
+            $level,
+            $this->dateKey($request, 'from_date'),
+            $this->dateKey($request, 'to_date'),
+        ) ?? (string) (clone $query)->sum('income_amount');
+        $totalAmount = $this->formatDecimalAmount($totalAmount);
         $perPage = max(1, min(100, (int) $request->query('per_page', 50)));
         $transactions = $query
             ->select(['id', 'member_id', 'member_name', 'from_member_id', 'level', 'income_amount', 'on_amount', 'created_at'])
@@ -240,6 +253,25 @@ class ReportController extends Controller
         if ($request->filled('to_date')) {
             $query->where('created_at', '<', CarbonImmutable::parse($request->query('to_date'))->addDay()->startOfDay());
         }
+    }
+
+    protected function memberSearch(Request $request): ?string
+    {
+        return $request->filled('member_id') ? trim((string) $request->query('member_id')) : null;
+    }
+
+    protected function dateKey(Request $request, string $field): ?int
+    {
+        return $request->filled($field)
+            ? (int) CarbonImmutable::parse($request->query($field))->format('Ymd')
+            : null;
+    }
+
+    protected function formatDecimalAmount($amount): string
+    {
+        $formatted = bcadd((string) $amount, '0', 4);
+
+        return rtrim(rtrim($formatted, '0'), '.') ?: '0';
     }
 
     protected function formatUsdt($amount): string

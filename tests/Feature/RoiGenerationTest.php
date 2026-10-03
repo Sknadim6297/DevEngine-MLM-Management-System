@@ -94,8 +94,9 @@ class RoiGenerationTest extends TestCase
         $this->investment($member, 'INVROI002', '100.0000', '2026-09-01');
         $this->investment($member, 'INVROI003', '500.0000', '2026-09-01');
 
-        app(RoiGenerationService::class)->generateForDate(CarbonImmutable::parse('2026-09-02', RoiGenerationService::TIMEZONE));
+        $result = app(RoiGenerationService::class)->generateForDate(CarbonImmutable::parse('2026-09-02', RoiGenerationService::TIMEZONE));
 
+        $this->assertSame(0, $result['failed']);
         $this->assertDatabaseHas('roi_transactions', ['investment_id' => 'INVROI002', 'income_amount' => '0.1666']);
         $this->assertDatabaseHas('roi_transactions', ['investment_id' => 'INVROI003', 'income_amount' => '0.8333']);
     }
@@ -151,6 +152,83 @@ class RoiGenerationTest extends TestCase
         $this->assertDatabaseCount('roi_transactions', 1);
     }
 
+    public function test_aged_investment_below_cap_remains_active_after_missed_generation_days(): void
+    {
+        $member = $this->member();
+        $investment = $this->investment($member, 'INVROI-AGED', '100.0000', '2021-01-01');
+
+        app(RoiGenerationService::class)->generateForDate(CarbonImmutable::parse('2026-09-02', RoiGenerationService::TIMEZONE));
+
+        $transaction = RoiTransaction::query()->where('investment_id', $investment->investment_id)->firstOrFail();
+        $this->assertSame('2026-09-02', $transaction->roi_date->toDateString());
+        $this->assertSame('0.1666', $transaction->income_amount);
+        $this->assertSame('active', $investment->fresh()->status);
+        $this->assertSame('0.1666', $member->fresh()->roi_wallet_amount);
+    }
+
+    public function test_aged_investment_receives_only_remaining_cap_before_expiring(): void
+    {
+        $member = $this->member();
+        $investment = $this->investment($member, 'INVROI-AGED-CAP', '100.0000', '2021-01-01');
+        $member->working_wallet_amount = '299.8800';
+        $member->save();
+
+        LevelCommissionTransaction::create([
+            'reference' => 'LC-INVROI-AGED-CAP-HISTORY',
+            'investment_id' => $investment->investment_id,
+            'member_id' => $member->member_id,
+            'member_name' => $member->member_name,
+            'from_member_id' => 'ST999999',
+            'from_member_name' => 'Source',
+            'level' => 1,
+            'business_date' => '2026-09-30',
+            'on_amount' => '100.0000',
+            'rate_percentage' => '1.000',
+            'income_amount' => '299.8800',
+        ]);
+
+        app(RoiGenerationService::class)->generateForDate(CarbonImmutable::parse('2026-10-02', RoiGenerationService::TIMEZONE));
+
+        $transaction = RoiTransaction::query()->where('investment_id', $investment->investment_id)->firstOrFail();
+        $this->assertSame('2026-10-02', $transaction->roi_date->toDateString());
+        $this->assertSame('0.1200', $transaction->income_amount);
+        $this->assertSame('expired', $investment->fresh()->status);
+        $this->assertSame('300.0000', bcadd(
+            (string) RoiTransaction::query()->where('investment_id', $investment->investment_id)->sum('income_amount'),
+            (string) LevelCommissionTransaction::query()->where('investment_id', $investment->investment_id)->sum('income_amount'),
+            4
+        ));
+        $this->assertSame('0.1200', $member->fresh()->roi_wallet_amount);
+        $this->assertSame('299.8800', $member->fresh()->working_wallet_amount);
+    }
+
+    public function test_future_dated_investment_starts_roi_the_following_business_day(): void
+    {
+        $member = $this->member();
+        $investment = $this->investment($member, 'INVROI-2040', '100.0000', '2040-01-01');
+        $service = app(RoiGenerationService::class);
+
+        $service->generateForDate(CarbonImmutable::parse('2040-01-01', RoiGenerationService::TIMEZONE));
+        $this->assertDatabaseMissing('roi_transactions', ['investment_id' => $investment->investment_id]);
+
+        $service->generateForDate(CarbonImmutable::parse('2040-01-02', RoiGenerationService::TIMEZONE));
+
+        $transaction = RoiTransaction::query()->where('investment_id', $investment->investment_id)->firstOrFail();
+        $this->assertSame('2040-01-02', $transaction->roi_date->toDateString());
+        $this->assertSame('0.1666', $transaction->income_amount);
+        $this->assertSame('active', $investment->fresh()->status);
+    }
+
+    public function test_future_roi_command_is_rejected_in_production_environment(): void
+    {
+        $this->app->instance('env', 'local');
+        config(['financial.accelerated.enabled' => false]);
+
+        $this->artisan('roi:generate --date=2040-01-01')->assertExitCode(1);
+
+        $this->assertDatabaseCount('roi_transactions', 0);
+    }
+
     public function test_same_investment_and_date_cannot_receive_roi_twice(): void
     {
         $member = $this->member();
@@ -183,8 +261,9 @@ class RoiGenerationTest extends TestCase
             'withdrawable_on' => '2026-10-01',
         ]);
 
-        app(RoiGenerationService::class)->generateForDate(CarbonImmutable::parse('2026-09-02', RoiGenerationService::TIMEZONE));
+        $result = app(RoiGenerationService::class)->generateForDate(CarbonImmutable::parse('2026-09-02', RoiGenerationService::TIMEZONE));
 
+        $this->assertSame(1, $result['failed']);
         $this->assertSame('0.0000', $member->fresh()->roi_wallet_amount);
         $this->assertDatabaseMissing('roi_transactions', ['investment_id' => 'INVROI006']);
         $this->assertDatabaseHas('investments', ['investment_id' => 'INVROI006', 'status' => 'active']);

@@ -6,7 +6,9 @@ use App\Models\Investment;
 use App\Models\Member;
 use App\Models\Rank;
 use App\Models\RankAchievement;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class RankService
@@ -14,6 +16,8 @@ class RankService
     private const MONEY_SCALE = 4;
 
     private const DIRECT_MEMBER_LEVEL_FOUR_THRESHOLD = 4;
+
+    private const BULK_EVALUATION_THRESHOLD = 2000;
 
     public function calculateForMember(Member|string $member, ?string $fromDate = null, ?string $toDate = null): array
     {
@@ -77,38 +81,35 @@ class RankService
 
     public function calculateForMembers(array $memberIds, ?string $fromDate = null, ?string $toDate = null): array
     {
-        $members = Member::query()
-            ->select(['member_id', 'sponsor_id'])
-            ->get();
+        $members = DB::table('members')->select(['member_id', 'sponsor_id'])->get();
 
-        $knownMemberIds = $members->pluck('member_id')->all();
+        $knownMemberIds = array_flip($members->pluck('member_id')->all());
         foreach ($memberIds as $memberId) {
-            if (! in_array($memberId, $knownMemberIds, true)) {
+            if (! isset($knownMemberIds[$memberId])) {
                 throw new InvalidArgumentException('The requested member does not exist.');
             }
         }
 
         $childrenBySponsor = $members->groupBy('sponsor_id');
-        $allDownlineIds = [];
+        $allDownlineLookup = [];
         $downlineIdsByMember = [];
         foreach ($memberIds as $memberId) {
             $downlineIdsByMember[$memberId] = array_values(array_unique(array_merge([$memberId], $this->downlineIds($memberId, $childrenBySponsor))));
-            $allDownlineIds = array_merge($allDownlineIds, $downlineIdsByMember[$memberId]);
+            foreach ($downlineIdsByMember[$memberId] as $downlineId) {
+                $allDownlineLookup[$downlineId] = true;
+            }
         }
 
-        $allDownlineIds = array_values(array_unique($allDownlineIds));
+        // Very large member sets are cheaper to aggregate once than to filter with a huge IN list.
+        $bulkEvaluation = count($allDownlineLookup) > self::BULK_EVALUATION_THRESHOLD;
         $businessQuery = Investment::query()
-            ->whereIn('member_id', $allDownlineIds)
             ->where('status', 'active')
             ->where('amount', '>=', 100);
-
-        if ($fromDate !== null && $fromDate !== '') {
-            $businessQuery->whereDate('created_at', '>=', $fromDate);
+        if (! $bulkEvaluation) {
+            $businessQuery->whereIn('member_id', array_keys($allDownlineLookup));
         }
 
-        if ($toDate !== null && $toDate !== '') {
-            $businessQuery->whereDate('created_at', '<=', $toDate);
-        }
+        $this->applyInvestmentDateRange($businessQuery, $fromDate, $toDate);
 
         $businessByMember = (clone $businessQuery)
             ->selectRaw('member_id, SUM(amount) as business')
@@ -116,13 +117,19 @@ class RankService
             ->pluck('business', 'member_id');
 
         $ranks = Rank::query()->where('is_active', true)->orderBy('sort_order')->get();
-        $directQualifyingMemberCounts = Member::query()
-            ->whereIn('sponsor_id', $memberIds)
+        $directQualifyingMemberQuery = Member::query();
+        if (count($memberIds) <= self::BULK_EVALUATION_THRESHOLD) {
+            $directQualifyingMemberQuery->whereIn('sponsor_id', $memberIds);
+        } else {
+            $directQualifyingMemberQuery->whereNotNull('sponsor_id');
+        }
+        $directQualifyingMemberCounts = $directQualifyingMemberQuery
             ->where('status', 'active')
-            ->whereHas('investments', function ($investmentQuery): void {
+            ->whereHas('investments', function ($investmentQuery) use ($fromDate, $toDate): void {
                 $investmentQuery
                     ->where('status', 'active')
                     ->where('amount', '>=', 100);
+                $this->applyInvestmentDateRange($investmentQuery, $fromDate, $toDate);
             })
             ->selectRaw('sponsor_id, COUNT(*) as direct_count')
             ->groupBy('sponsor_id')
@@ -172,6 +179,21 @@ class RankService
         return $results;
     }
 
+    private function applyInvestmentDateRange($query, ?string $fromDate, ?string $toDate): void
+    {
+        if ($fromDate !== null && $fromDate !== '') {
+            $query->where('created_at', '>=', CarbonImmutable::parse($fromDate, 'Asia/Kolkata')
+                ->startOfDay()
+                ->setTimezone('UTC'));
+        }
+
+        if ($toDate !== null && $toDate !== '') {
+            $query->where('created_at', '<=', CarbonImmutable::parse($toDate, 'Asia/Kolkata')
+                ->endOfDay()
+                ->setTimezone('UTC'));
+        }
+    }
+
     private function qualifyingDirectMemberCount(string $memberId): int
     {
         return Member::query()
@@ -191,8 +213,8 @@ class RankService
         $visited = [$rootMemberId => true];
         $pending = [$rootMemberId];
 
-        while ($pending !== []) {
-            $sponsorId = array_shift($pending);
+        for ($cursor = 0; $cursor < count($pending); $cursor++) {
+            $sponsorId = $pending[$cursor];
 
             foreach ($childrenBySponsor->get($sponsorId, collect()) as $child) {
                 if (isset($visited[$child->member_id])) {
